@@ -1,0 +1,21 @@
+#to create new migrate
+sea migrate generate -d <path of migration dir> <migrate name>
+
+sea migrate generate -d src/domain/migration
+
+
+#to generate entity
+sea generate entity -o <output dir> -u <database url>
+
+
+
+#use
+sea generate entity \
+    -u mysql://db_lighthouse:pw_lighthouse@127.0.0.1:3306/<> \
+    -o src/domain/entities
+
+
+open api spec :
+http://localhost:8000/openapi.json
+
+

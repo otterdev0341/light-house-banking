@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: light_house_sql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: password
+      MYSQL_USER: db_lighthouse
+      MYSQL_PASSWORD: pw_lighthouse
+    ports:
+      - "3306:3306"
+    volumes:
+      - /home/otterdev_ball/docker_volume:/var/lib/mysql
+    networks:
+      - mynet
+
+networks:
+  mynet:

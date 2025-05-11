@@ -1,0 +1,7 @@
+mysql -h 127.0.0.1 -P 3306 -u db_lighthouse -p
+
+mysql -h 127.0.0.1 -P 3306 -u root -p
+
+docker exec -it 6cdbd4d3fbe3 bash
+
+mysql -u root -p

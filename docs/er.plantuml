@@ -1,0 +1,108 @@
+@startuml "light-house"
+
+entity AssetType {
+  *id : INT <<PK>>
+  *name : VARCHAR
+  *created_at : DATETIME
+  *updated_at : DATETIME
+  user_id : INT <<FK>>
+}
+
+entity Asset {
+  *id : INT <<PK>>
+  *name : VARCHAR
+  *asset_type_id : INT <<FK>>
+  *created_at : DATETIME
+  *updated_at : DATETIME
+  user_id : INT <<FK>>
+}
+
+entity ExpenseType {
+  *id : INT <<PK>>
+  *name : VARCHAR
+  *created_at : DATETIME
+  *updated_at : DATETIME
+  user_id : INT <<FK>>
+}
+
+entity Expense {
+  *id : INT <<PK>>
+  *description : VARCHAR
+  *expense_type_id : INT <<FK>>
+  *created_at : DATETIME
+  *updated_at : DATETIME
+    user_id : INT <<FK>>
+}
+
+entity ContactType {
+  *id : INT <<PK>>
+  *name : VARCHAR -- 'Customer' or 'Vendor'
+  *created_at : DATETIME
+  *updated_at : DATETIME
+  user_id : INT <<FK>>
+}
+
+entity Contact {
+  *id : INT <<PK>>
+  *name : VARCHAR
+  *business_name : VARCHAR
+  *phone : VARCHAR
+  *description : TEXT
+  *contact_type_id : INT <<FK>>
+  *created_at : DATETIME
+  *updated_at : DATETIME
+  user_id : INT <<FK>>
+}
+
+entity Transaction {
+  *id : INT <<PK>>
+  *transaction_type : ENUM("Income", "Payment", "Transfer")
+  *amount : DECIMAL(10,2)
+  *asset_id : INT <<FK>> -- source
+  *destination_asset_id : INT <<FK NULLABLE>> -- destination for transfers
+  *expense_id : INT <<FK NULLABLE>>
+  *contact_id : INT <<FK NULLABLE>>
+  *note : VARCHAR
+  *created_at : DATETIME
+  *updated_at : DATETIME
+  user_id : INT <<FK>>
+}
+
+entity CurrentSheet {
+  *id : INT <<PK>>
+  *asset_id : INT <<FK>>
+  *balance : DECIMAL(10,2)
+  *updated_at : DATETIME
+  user_id : INT <<FK>>
+}
+
+entity User {
+  *id : INT <<PK>>
+  *username : VARCHAR(50)
+  *password : VARCHAR(255)  -- Store hashed password
+  *email : VARCHAR(100) <<UNIQUE>>
+  *first_name : VARCHAR(50)
+  *last_name : VARCHAR(50)
+  gender : ENUM("Male", "Female", "Other")
+  *created_at : DATETIME
+  *updated_at : DATETIME
+}
+
+AssetType ||--o{ Asset : asset_type_id
+ExpenseType ||--o{ Expense : expense_type_id
+ContactType ||--o{ Contact : contact_type_id
+Contact ||--o{ Transaction : contact_id
+Asset ||--o{ Transaction : asset_id
+Asset ||--o{ Transaction : destination_asset_id
+Expense ||--o{ Transaction : expense_id
+Asset ||--o{ CurrentSheet : asset_id
+User ||--o{ AssetType : user_id
+User ||--o{ Asset : user_id
+User ||--o{ ExpenseType : user_id
+User ||--o{ Expense : user_id
+User ||--o{ ContactType : user_id
+User ||--o{ Contact : user_id
+User ||--o{ Transaction : user_id
+User ||--o{ CurrentSheet : user_id
+
+@enduml

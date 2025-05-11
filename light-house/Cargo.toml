@@ -1,0 +1,45 @@
+[package]
+name = "light-house"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# running async 
+tokio = { version = "1.45.0", features = ["full"] }
+# create rmcp protocal
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk", branch = "main", features = [
+    "server",
+    "transport-sse-server",
+    "transport-io",
+    
+] }
+
+# json Serialize and Deserialize
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+#log
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+#validate struct
+validator = { version = "0.20.0", features = ["derive"] }
+schemars = { version = "0.8.22", optional = true }
+futures = "0.3.31"
+async-trait = "0.1.88"
+mockall = "0.13.1"
+chrono = { version = "0.4", features = ["serde"] }
+dotenvy = "0.15.7"
+rocket = { version = "0.5.1", features = ["json", "uuid"]}
+utoipa = "5.3.1"
+utoipa-swagger-ui = {version="9.0.1", features=["rocket"]}
+uuid = "1.16.0"
+jsonwebtoken = "9.3.1"
+bcrypt = "0.17.0"
+# database connection
+sea-orm = { version = "1.1.11", features = [ 
+    "sqlx-mysql", 
+    "runtime-tokio-rustls", 
+    "macros", 
+    "with-uuid", 
+    "with-json", 
+    "debug-print" ] }
+sea-orm-migration = "1.1.11"

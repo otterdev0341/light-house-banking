@@ -67,6 +67,7 @@ entity TransactionType {
   *updated_at : DATETIME
 }
 
+' Done
 entity Transaction {
   *id : INT <<PK>>
   *transaction_type_id : INT <<FK>>
@@ -81,6 +82,7 @@ entity Transaction {
   user_id : INT <<FK>>
 }
 
+' Done
 entity CurrentSheet {
   *id : INT <<PK>>
   *asset_id : INT <<FK>>

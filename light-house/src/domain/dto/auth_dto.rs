@@ -52,3 +52,15 @@ pub struct Claims {
     pub role: String,
     pub exp: u64,
 }
+
+#[derive(Deserialize,Validate, ToSchema,Debug)]
+#[serde(crate = "rocket::serde")]
+pub struct ReqUpdateUserDto{
+    pub username: Option<String>,
+    pub password: Option<String>,
+    pub email: Option<String>,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub gender: Option<String>,
+
+}

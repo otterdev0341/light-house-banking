@@ -1,0 +1,99 @@
+// --- Repository Traits ---
+
+#[async_trait]
+pub trait UserRepository: Send + Sync {
+    async fn create(&self, data: CreateUserDto, role_id: i32) -> anyhow::Result<UserEntity>;
+    async fn find_by_id(&self, id: i32) -> anyhow::Result<Option<UserEntity>>;
+    async fn find_by_username(&self, username: &str) -> anyhow::Result<Option<UserEntity>>;
+    async fn find_by_email(&self, email: &str) -> anyhow::Result<Option<UserEntity>>;
+    async fn update_profile(&self, user_id: i32, data: UpdateUserProfileDto) -> anyhow::Result<UserEntity>;
+    // Consider a method to get user with role:
+    // async fn find_by_id_with_role(&self, id: i32) -> anyhow::Result<Option<(UserEntity, UserRoleEntity)>>;
+}
+
+#[async_trait]
+pub trait UserRoleRepository: Send + Sync {
+    async fn create(&self, name: &str) -> anyhow::Result<UserRoleEntity>;
+    async fn find_by_id(&self, id: i32) -> anyhow::Result<Option<UserRoleEntity>>;
+    async fn find_by_name(&self, name: &str) -> anyhow::Result<Option<UserRoleEntity>>;
+    async fn find_all(&self) -> anyhow::Result<Vec<UserRoleEntity>>;
+    async fn update(&self, id: i32, name: &str) -> anyhow::Result<UserRoleEntity>;
+    async fn delete(&self, id: i32) -> anyhow::Result<()>; // Check if in use by any User before allowing delete
+}
+
+#[async_trait]
+pub trait GenderRepository: Send + Sync {
+    async fn find_by_id(&self, id: i32) -> anyhow::Result<Option<GenderEntity>>;
+    async fn find_all(&self) -> anyhow::Result<Vec<GenderEntity>>;
+}
+
+#[async_trait]
+pub trait AssetTypeRepository: Send + Sync {
+    async fn create(&self, user_id: i32, name: &str) -> anyhow::Result<AssetTypeEntity>;
+    async fn find_by_id(&self, user_id: i32, id: i32) -> anyhow::Result<Option<AssetTypeEntity>>;
+    async fn find_all_by_user_id(&self, user_id: i32) -> anyhow::Result<Vec<AssetTypeEntity>>;
+    async fn update(&self, user_id: i32, id: i32, name: &str) -> anyhow::Result<AssetTypeEntity>;
+    async fn delete(&self, user_id: i32, id: i32) -> anyhow::Result<()>;
+    async fn is_in_use(&self, user_id: i32, asset_type_id: i32) -> anyhow::Result<bool>;
+}
+
+#[async_trait]
+pub trait AssetRepository: Send + Sync {
+    async fn create(&self, user_id: i32, data: CreateAssetDto) -> anyhow::Result<AssetEntity>;
+    async fn find_by_id(&self, user_id: i32, id: i32) -> anyhow::Result<Option<AssetEntity>>;
+    async fn find_all_by_user_id(&self, user_id: i32) -> anyhow::Result<Vec<AssetEntity>>;
+    async fn find_all_with_balances_by_user_id(&self, user_id: i32) -> anyhow::Result<Vec<AssetWithBalance>>;
+    async fn update(&self, user_id: i32, id: i32, data: UpdateAssetDto) -> anyhow::Result<AssetEntity>;
+    async fn delete(&self, user_id: i32, id: i32) -> anyhow::Result<()>;
+    async fn has_transactions(&self, user_id: i32, asset_id: i32) -> anyhow::Result<bool>;
+}
+
+#[async_trait]
+pub trait ExpenseTypeRepository: Send + Sync {
+    async fn create(&self, user_id: i32, name: &str) -> anyhow::Result<ExpenseTypeEntity>;
+    async fn find_by_id(&self, user_id: i32, id: i32) -> anyhow::Result<Option<ExpenseTypeEntity>>;
+    async fn find_all_by_user_id(&self, user_id: i32) -> anyhow::Result<Vec<ExpenseTypeEntity>>;
+    async fn update(&self, user_id: i32, id: i32, name: &str) -> anyhow::Result<ExpenseTypeEntity>;
+    async fn delete(&self, user_id: i32, id: i32) -> anyhow::Result<()>;
+    async fn is_in_use(&self, user_id: i32, expense_type_id: i32) -> anyhow::Result<bool>;
+}
+
+#[async_trait]
+pub trait ExpenseRepository: Send + Sync {
+    async fn create(&self, user_id: i32, data: CreateExpenseDto) -> anyhow::Result<ExpenseEntity>;
+    async fn find_by_id(&self, user_id: i32, id: i32) -> anyhow::Result<Option<ExpenseEntity>>;
+    async fn find_all_by_user_id(&self, user_id: i32) -> anyhow::Result<Vec<ExpenseEntity>>;
+    async fn update(&self, user_id: i32, id: i32, data: UpdateExpenseDto) -> anyhow::Result<ExpenseEntity>;
+    async fn delete(&self, user_id: i32, id: i32) -> anyhow::Result<()>;
+    async fn is_in_use_in_transaction(&self, user_id: i32, expense_id: i32) -> anyhow::Result<bool>;
+}
+
+#[async_trait]
+pub trait ContactTypeRepository: Send + Sync {
+    async fn create(&self, user_id: i32, name: &str) -> anyhow::Result<ContactTypeEntity>;
+    async fn find_by_id(&self, user_id: i32, id: i32) -> anyhow::Result<Option<ContactTypeEntity>>;
+    async fn find_by_name(&self, user_id: i32, name: &str) -> anyhow::Result<Option<ContactTypeEntity>>;
+    async fn find_all_by_user_id(&self, user_id: i32) -> anyhow::Result<Vec<ContactTypeEntity>>;
+    async fn update(&self, user_id: i32, id: i32, name: &str) -> anyhow::Result<ContactTypeEntity>;
+    async fn delete(&self, user_id: i32, id: i32) -> anyhow::Result<()>;
+    async fn is_in_use(&self, user_id: i32, contact_type_id: i32) -> anyhow::Result<bool>;
+}
+
+#[async_trait]
+pub trait ContactRepository: Send + Sync {
+    /// Creates a Contact and links it to the user via UserContact table.
+    async fn create(&self, user_id: i32, data: CreateContactDto) -> anyhow::Result<ContactEntity>;
+    async fn find_by_id(&self, user_id: i32, contact_id: i32) -> anyhow::Result<Option<ContactEntity>>;
+    async fn find_all_by_user_id(&self, user_id: i32) -> anyhow::Result<Vec<ContactEntity>>;
+    async fn update(&self, user_id: i32, contact_id: i32, data: UpdateContactDto) -> anyhow::Result<ContactEntity>;
+    /// Deletes a Contact and its link from UserContact table for the given user.
+    async fn delete(&self, user_id: i32, contact_id: i32) -> anyhow::Result<()>;
+    async fn is_in_use_in_transaction(&self, user_id: i32, contact_id: i32) -> anyhow::Result<bool>;
+}
+
+#[async_trait]
+pub trait TransactionTypeRepository: Send + Sync {
+    async fn find_by_id(&self, id: i32) -> anyhow::Result<Option<TransactionTypeEntity>>;
+    async fn find_by_name(&self, name: &str) -> anyhow::Result<Option<TransactionTypeEntity>>; // e.g., "Income", "Payment", "Transfer"
+    async fn find_all(&self) -> anyhow::Result<Vec<TransactionTypeEntity>>;
+}

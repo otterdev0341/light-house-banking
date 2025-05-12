@@ -21,6 +21,7 @@ impl MigrationTrait for Migration {
                             .uuid()
                             .not_null()
                             
+                            
                     )
                     .foreign_key(
                         ForeignKey::create()
@@ -34,6 +35,12 @@ impl MigrationTrait for Migration {
                         ColumnDef::new(UserContact::ContactId)
                             .uuid()
                             .not_null()
+                            
+                    )
+                    .primary_key(
+                        Index::create()
+                            .col(UserContact::UserId)
+                            .col(UserContact::ContactId),
                     )
                     .foreign_key(
                         ForeignKey::create()

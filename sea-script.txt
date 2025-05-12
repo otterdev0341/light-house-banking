@@ -11,7 +11,7 @@ sea generate entity -o <output dir> -u <database url>
 
 #use
 sea generate entity \
-    -u mysql://db_lighthouse:pw_lighthouse@127.0.0.1:3306/<> \
+    -u mysql://db_lighthouse:pw_lighthouse@127.0.0.1:3306/light_house_banking \
     -o src/domain/entities
 
 

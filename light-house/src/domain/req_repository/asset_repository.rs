@@ -1,4 +1,3 @@
-use thiserror::Error;
 use uuid::Uuid;
 
 use crate::domain::entities::asset;

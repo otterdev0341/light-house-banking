@@ -9,6 +9,7 @@ entity AssetType {
   user_id : INT <<FK>>
 }
 
+' Done
 entity Asset {
   *id : INT <<PK>>
   *name : VARCHAR
@@ -18,6 +19,7 @@ entity Asset {
   user_id : INT <<FK>>
 }
 
+' Done
 entity ExpenseType {
   *id : INT <<PK>>
   *name : VARCHAR
@@ -26,6 +28,7 @@ entity ExpenseType {
   user_id : INT <<FK>>
 }
 
+' Done
 entity Expense {
   *id : INT <<PK>>
   *description : VARCHAR
@@ -35,6 +38,7 @@ entity Expense {
   user_id : INT <<FK>>
 }
 
+' Done
 entity ContactType {
   *id : INT <<PK>>
   *name : VARCHAR -- 'Customer' or 'Vendor'
@@ -43,6 +47,7 @@ entity ContactType {
   user_id : INT <<FK>>
 }
 
+' Done
 entity Contact {
   *id : INT <<PK>>
   *name : VARCHAR

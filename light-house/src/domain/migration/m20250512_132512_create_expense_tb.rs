@@ -1,6 +1,6 @@
 use sea_orm_migration::{prelude::*, schema::*};
 
-use super::m20220101_000001_asset_type_tb::AssetType;
+use super::{m20250512_114434_create_user_tb::User, m20250512_132030_create_expense_type_tb::ExpenseType};
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -14,42 +14,45 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(Asset::Table)
+                    .table(Expense::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(Asset::Id)
+                        ColumnDef::new(Expense::Id)
                             .uuid()
                             .not_null()
-                            .primary_key(),
+                            .primary_key()
                     )
-                    .col(string(Asset::Name).not_null())
-                    .col(string(Asset::AssetTypeId).not_null())
-                    .foreign_key(ForeignKey::create()
-                        .name("fk_asset_asset_type")
-                        .from(Asset::Table, Asset::AssetTypeId)
-                        .to(AssetType::Table, AssetType::Id)
+                    .col(string(Expense::Description).not_null())
+                    .col(
+                        ColumnDef::new(Expense::ExpenseTypeId)
+                            .uuid()
+                            .not_null()
+                    ).foreign_key(ForeignKey::create()
+                        .name("fk_expense_expense_type")
+                        .from(Expense::Table, Expense::ExpenseTypeId)
+                        .to(ExpenseType::Table, ExpenseType::Id)
                         .on_delete(ForeignKeyAction::Restrict)
                         .on_update(ForeignKeyAction::Cascade)
                     )
                     .col(
-                        ColumnDef::new(Asset::CreatedAt)
+                        ColumnDef::new(Expense::CreatedAt)
                             .timestamp()
                             .extra("DEFAULT CURRENT_TIMESTAMP".to_owned()),
                     )
                     .col(
-                        ColumnDef::new(Asset::UpdatedAt)
+                        ColumnDef::new(Expense::UpdatedAt)
                             .timestamp()
                             .extra("DEFAULT CURRENT_TIMESTAMP".to_owned()),
                     )
                     .col(
-                        ColumnDef::new(Asset::UserId)
+                        ColumnDef::new(Expense::UserId)
                             .uuid()
                             .not_null(),
                     )
                     .foreign_key(ForeignKey::create()
-                        .name("fk_asset_user")
-                        .from(Asset::Table, Asset::UserId)
-                        .to(AssetType::Table, AssetType::Id)
+                        .name("fk_expense_user")
+                        .from(Expense::Table, Expense::UserId)
+                        .to(User::Table, User::Id)
                         .on_delete(ForeignKeyAction::Restrict)
                         .on_update(ForeignKeyAction::Cascade)
                     )
@@ -63,19 +66,19 @@ impl MigrationTrait for Migration {
         
 
         manager
-            .drop_table(Table::drop().table(Asset::Table).to_owned())
+            .drop_table(Table::drop().table(Expense::Table).to_owned())
             .await
     }
 }
 
 #[derive(DeriveIden)]
 #[sea_orm(rename_all = "snake_case")]
-pub enum Asset {
+pub enum Expense {
     Table,
     Id,
-    Name,
-    AssetTypeId,
+    Description,
+    ExpenseTypeId,
     CreatedAt,
     UpdatedAt,
-    UserId
+    UserId,
 }

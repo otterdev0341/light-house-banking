@@ -1,5 +1,6 @@
 @startuml "light-house"
 
+' Done
 entity AssetType {
   *id : INT <<PK>>
   *name : VARCHAR
@@ -84,6 +85,7 @@ entity CurrentSheet {
   user_id : INT <<FK>>
 }
 
+' Done
 entity Gender {
   *id : INT <<PK>>
   *name : VARCHAR(20) -- "Male", "Female", "Other"
@@ -91,6 +93,7 @@ entity Gender {
   *updated_at : DATETIME
 }
 
+ ' Done
 entity User {
   *id : INT <<PK>>
   *username : VARCHAR(50)
@@ -99,7 +102,16 @@ entity User {
   *first_name : VARCHAR(50)
   *last_name : VARCHAR(50)
   *mcp_token : VARCHAR(255) -- For storing MCP credentials
-  gender_id : INT <<FK NULLABLE>>
+  *gender_id : INT <<FK NULLABLE>>
+  *user_role_id : INT <<FK>>
+  *created_at : DATETIME
+  *updated_at : DATETIME
+}
+
+' Done
+entity UserRole {
+  *id : INT <<PK>>
+  *name : VARCHAR(50)
   *created_at : DATETIME
   *updated_at : DATETIME
 }
@@ -134,6 +146,7 @@ User ||--o{ Asset : user_id
 User ||--o{ ExpenseType : user_id
 User ||--o{ Expense : user_id
 User ||--o{ ContactType : user_id
+User ||--o{ UserRoel : user_role_id
 ' User ||--o{ Contact : user_id -- Replaced by UserContact
 User ||--o{ Transaction : user_id
 User ||--o{ CurrentSheet : user_id

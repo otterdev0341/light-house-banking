@@ -21,7 +21,11 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .primary_key(),
                     )
-                    .col(string(CurrentSheet::AssetId).not_null())
+                    .col(
+                        ColumnDef::new(CurrentSheet::AssetId)
+                            .uuid()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_current_sheet_asset_id")
@@ -30,8 +34,16 @@ impl MigrationTrait for Migration {
                             .on_delete(ForeignKeyAction::Cascade)
                             .on_update(ForeignKeyAction::Cascade),
                     )
-                    .col(double(CurrentSheet::Balance).not_null())
-                    .col(string(CurrentSheet::LastTransactionId).null())
+                    .col(
+                        ColumnDef::new(CurrentSheet::Balance)
+                            .decimal()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(CurrentSheet::LastTransactionId)
+                            .uuid()
+                            
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_current_sheet_last_transaction_id")
@@ -45,7 +57,11 @@ impl MigrationTrait for Migration {
                             .timestamp()
                             .extra("DEFAULT CURRENT_TIMESTAMP".to_owned()),
                     )
-                    .col(ColumnDef::new(CurrentSheet::UserId).uuid().not_null())
+                    .col(
+                        ColumnDef::new(CurrentSheet::UserId)
+                        .uuid()
+                        .not_null()
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_current_sheet_user_id")

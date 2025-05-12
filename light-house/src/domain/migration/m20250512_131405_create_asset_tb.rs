@@ -1,6 +1,8 @@
 use sea_orm_migration::{prelude::*, schema::*};
 
-use super::m20220101_000001_asset_type_tb::AssetType;
+use super::{m20220101_000001_asset_type_tb::AssetType, m20250512_114434_create_user_tb::User};
+
+
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -23,7 +25,11 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(string(Asset::Name).not_null())
-                    .col(string(Asset::AssetTypeId).not_null())
+                    .col(
+                        ColumnDef::new(Asset::AssetTypeId)
+                            .uuid()
+                            .not_null(),
+                    )
                     .foreign_key(ForeignKey::create()
                         .name("fk_asset_asset_type")
                         .from(Asset::Table, Asset::AssetTypeId)
@@ -49,7 +55,7 @@ impl MigrationTrait for Migration {
                     .foreign_key(ForeignKey::create()
                         .name("fk_asset_user")
                         .from(Asset::Table, Asset::UserId)
-                        .to(AssetType::Table, AssetType::Id)
+                        .to(User::Table, User::Id)
                         .on_delete(ForeignKeyAction::Restrict)
                         .on_update(ForeignKeyAction::Cascade)
                     )

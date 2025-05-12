@@ -20,7 +20,7 @@ impl MigrationTrait for Migration {
                         ColumnDef::new(UserContact::UserId)
                             .uuid()
                             .not_null()
-                            .primary_key(),
+                            
                     )
                     .foreign_key(
                         ForeignKey::create()
@@ -30,7 +30,11 @@ impl MigrationTrait for Migration {
                             .on_delete(ForeignKeyAction::Cascade)
                             .on_update(ForeignKeyAction::Cascade),
                     )
-                    .col(string(UserContact::ContactId).not_null())
+                    .col(
+                        ColumnDef::new(UserContact::ContactId)
+                            .uuid()
+                            .not_null()
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_user_contact_contact_id")

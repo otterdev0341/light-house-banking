@@ -1,6 +1,7 @@
-use light_house::infrastructure::http::faring::cors::CORS;
+use light_house::{configuration::mysql_config::DatabaseConfig, domain::migration::Migrator, infrastructure::{database::mysql::mysql_connection, http::faring::cors::CORS}};
 use rocket::{get, routes};
-#[macro_use] extern crate rocket;
+use sea_orm_migration::MigratorTrait;
+
 
 
 #[get("/")]
@@ -9,7 +10,7 @@ fn index() -> &'static str {
 }
 
 #[rocket::main]
-async fn main()  {
+async fn main() -> Result<(), rocket::Error>  {
     
     // Load environment variables from .env file
     dotenvy::dotenv().ok();
@@ -20,8 +21,14 @@ async fn main()  {
         .with_target(false)
         .init();
     // Initialize the database connection pool
-
+    let config = DatabaseConfig::default();
+    let db = mysql_connection::connect(&config).await.unwrap();
+    tracing::info!("Database connection established");
     // initialize database migrations
+    tracing::info!("Running database migrations");
+    Migrator::up(&db, None).await.unwrap();
+    // Migrator::fresh(&db).await.unwrap();
+    tracing::info!("Database migrations completed");
     
 
     match rocket::build()
@@ -36,5 +43,5 @@ async fn main()  {
             tracing::error!("Rocket server failed to start: {}", e);
         }
     }
-    
+    Ok(())
 }

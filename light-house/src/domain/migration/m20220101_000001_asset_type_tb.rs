@@ -17,8 +17,13 @@ impl MigrationTrait for Migration {
                     .table(AssetType::Table)
                     .if_not_exists()
                     .col(ColumnDef::new(AssetType::Id)
-                        .uuid().not_null().primary_key())
-                    .col(string(AssetType::Name).not_null())
+                        .uuid()
+                        .not_null()
+                        .primary_key()
+                    )
+                    .col(
+                        string(AssetType::Name)
+                            .unique_key())
                     .col(
                         ColumnDef::new(AssetType::CreatedAt)
                             .timestamp()

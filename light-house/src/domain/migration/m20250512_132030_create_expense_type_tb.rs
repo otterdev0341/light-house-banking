@@ -20,7 +20,6 @@ impl MigrationTrait for Migration {
                         ColumnDef::new(ExpenseType::Id)
                             .uuid()
                             .not_null()
-                            .auto_increment()
                             .primary_key(),
                     )
                     .col(string(ExpenseType::Name).not_null())

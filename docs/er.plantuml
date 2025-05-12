@@ -98,6 +98,7 @@ entity User {
   *email : VARCHAR(100) <<UNIQUE>>
   *first_name : VARCHAR(50)
   *last_name : VARCHAR(50)
+  *mcp_token : VARCHAR(255) -- For storing MCP credentials
   gender_id : INT <<FK NULLABLE>>
   *created_at : DATETIME
   *updated_at : DATETIME

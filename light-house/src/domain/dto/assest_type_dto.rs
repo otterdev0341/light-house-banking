@@ -13,8 +13,8 @@ pub struct ReqCreateAssetTypeDto {
 #[derive(Debug, Serialize, Deserialize, ToSchema, Validate)]
 #[serde(crate = "rocket::serde")]
 pub struct ReqUpdateAssestTypeDto {
-    #[validate(length(min = 1, message = "The name must not be empty"))]
-    pub name: String,
+    
+    pub name: Option<String>,
 }
 
 

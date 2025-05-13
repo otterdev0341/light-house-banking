@@ -6,7 +6,7 @@ use crate::{domain::{dto::contact_type_dto::{ReqCreateContactTypeDto, ReqUpdateC
 
 #[async_trait::async_trait]
 pub trait ContactTypeRepositoryUtility: Send + Sync {
-    async fn find_by_name(&self, name: &str, user_id: Uuid) -> Result<Option<contact_type::Model>, String>;
+    async fn find_by_name(&self, name: &str, user_id: Uuid) -> Result<Option<contact_type::Entity>, String>;
     async fn find_all_by_user_id(&self, user_id: Uuid) -> Result<Vec<contact_type::Model>, String>;
 }
 

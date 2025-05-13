@@ -132,7 +132,12 @@ impl AssetRepositoryBase for AssetRepositoryImpl{
         }
     
         if let Some(asset_type_id) = dto.asset_type_id {
-            active_model.asset_type_id = Set(asset_type_id.to_be_bytes().to_vec());
+            active_model.asset_type_id = Set(
+                Uuid::parse_str(&asset_type_id)
+                    .map_err(|err| RepositoryError::InvalidInput(err.to_string()))?
+                    .as_bytes()
+                    .to_vec()
+            );
         }
 
 

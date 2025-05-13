@@ -19,7 +19,7 @@ pub struct ReqCreateContactTypeDto {
 #[serde(crate = "rocket::serde")]
 pub struct ReqUpdateContactTypeDto {
     #[validate(length(min = 1, message = "The name must not be empty"))]
-    pub name: String,
+    pub name: Option<String>,
 }
 
 

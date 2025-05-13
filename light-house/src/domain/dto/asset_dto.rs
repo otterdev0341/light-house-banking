@@ -22,7 +22,7 @@ pub struct ReqCreateAssetDto{
 #[serde(crate = "rocket::serde")]
 pub struct ReqUpdateAssetDto {
     pub name: Option<String>,
-    pub asset_type_id: Option<i32>,
+    pub asset_type_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

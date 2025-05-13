@@ -272,3 +272,214 @@ impl UserRepositoryMcp for UserRepositoryImpl{
      Ok(())
     }
 }
+
+
+#[cfg(test)]
+mod user_repository_base_tests {
+    use crate::domain::req_repository::user_repository::MockUserRepositoryBase;
+
+    use super::*;
+    use mockall::predicate::*;
+    use uuid::Uuid;
+
+    #[tokio::test]
+    async fn test_create_success() {
+        let mut mock_repo = MockUserRepositoryBase::new();
+        let dto = ReqSignUpDto {
+            username: "test_user".to_string(),
+            email: "test@example.com".to_string(),
+            password: "secure_password".to_string(),
+            first_name: "Test".to_string(),
+            last_name: "User".to_string(),
+            gender: "male".to_string(),
+        };
+        let user = user::Model {
+            id: Uuid::new_v4().as_bytes().to_vec(),
+            username: dto.username.clone(),
+            email: dto.email.clone(),
+            password: "hashed_password".to_string(),
+            first_name: dto.first_name.clone(),
+            last_name: dto.last_name.clone(),
+            gender_id: Uuid::new_v4().as_bytes().to_vec(),
+            user_role_id: Uuid::new_v4().as_bytes().to_vec(),
+            created_at: Some(chrono::Utc::now()),
+            updated_at: Some(chrono::Utc::now()),
+            mcp_token: "paslkjwoeifhw".to_string(),
+        };
+
+        mock_repo
+            .expect_create()
+            .with(eq(dto.clone()))
+            .times(1)
+            .returning({
+                let user = user.clone();
+                move |_| {
+                    let user_ref = user.clone();
+                    Box::pin(async move { Ok(user_ref) })
+                }
+            });
+
+        let result = mock_repo.create(dto).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().username, "test_user");
+    }
+
+    #[tokio::test]
+    async fn test_find_by_id_success() {
+        let mut mock_repo = MockUserRepositoryBase::new();
+        let user_id = Uuid::new_v4();
+        let user = user::Model {
+            id: user_id.as_bytes().to_vec(),
+            username: "test_user".to_string(),
+            email: "test@example.com".to_string(),
+            password: "hashed_password".to_string(),
+            first_name: "Test".to_string(),
+            last_name: "User".to_string(),
+            mcp_token: "sample_token".to_string(),
+            gender_id: Uuid::new_v4().as_bytes().to_vec(),
+            user_role_id: Uuid::new_v4().as_bytes().to_vec(),
+            created_at: Some(chrono::Utc::now()),
+            updated_at: Some(chrono::Utc::now()),
+        };
+
+        mock_repo
+            .expect_find_by_id()
+            .with(eq(user_id))
+            .times(1)
+            .returning(move |_| {
+                let user_clone = user.clone();
+                Box::pin(async move { Ok(Some(user_clone)) })
+            });
+
+        let result = mock_repo.find_by_id(user_id).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().unwrap().username, "test_user");
+    }
+
+    #[tokio::test]
+    async fn test_delete_user_not_found() {
+        let mut mock_repo = MockUserRepositoryBase::new();
+        let user_id = Uuid::new_v4();
+
+        mock_repo
+            .expect_delete()
+            .with(eq(user_id))
+            .times(1)
+            .returning(|_| Box::pin(async { Err(RepositoryError::NotFound("User not found".to_string())) }));
+
+        let result = mock_repo.delete(user_id).await;
+        assert!(matches!(result, Err(RepositoryError::NotFound(_))));
+    }
+}
+
+
+#[cfg(test)]
+mod user_repository_utility_tests {
+    use crate::domain::req_repository::user_repository::MockUserRepositoryUtility;
+
+    use super::*;
+    use mockall::predicate::*;
+
+    #[tokio::test]
+    async fn test_find_by_username_success() {
+        let mut mock_repo = MockUserRepositoryUtility::new();
+        let username = "test_user";
+        let user = user::Model {
+            id: Uuid::new_v4().as_bytes().to_vec(),
+            username: username.to_string(),
+            email: "test@example.com".to_string(),
+            password: "hashed_password".to_string(),
+            first_name: "Test".to_string(),
+            last_name: "User".to_string(),
+            mcp_token: "sample_token".to_string(),
+            gender_id: Uuid::new_v4().as_bytes().to_vec(),
+            user_role_id: Uuid::new_v4().as_bytes().to_vec(),
+            created_at: Some(chrono::Utc::now()),
+            updated_at: Some(chrono::Utc::now()),
+        };
+
+        mock_repo
+            .expect_find_by_username()
+            .with(eq(username))
+            .times(1)
+            .returning({
+                let user = user.clone();
+                move |_| {
+                    let user_clone = user.clone();
+                    Box::pin(async { Ok(Some(user_clone)) })
+                }
+            });
+
+        let result = mock_repo.find_by_username(username).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().unwrap().username, "test_user");
+    }
+
+    #[tokio::test]
+    async fn test_find_by_email_not_found() {
+        let mut mock_repo = MockUserRepositoryUtility::new();
+        let email = "notfound@example.com";
+
+        mock_repo
+            .expect_find_by_email()
+            .with(eq(email))
+            .times(1)
+            .returning(|_| Box::pin(async { Ok(None) }));
+
+        let result = mock_repo.find_by_email(email).await;
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+}
+
+
+
+#[cfg(test)]
+mod user_repository_mcp_tests {
+    use crate::domain::req_repository::user_repository::MockUserRepositoryMcp;
+
+    use super::*;
+    use mockall::predicate::*;
+    use uuid::Uuid;
+
+    #[tokio::test]
+    async fn test_get_mcp_by_user_id_success() {
+        let mut mock_repo = MockUserRepositoryMcp::new();
+        let user_id = Uuid::new_v4();
+        let mcp_token = "secure_mcp_token".to_string();
+
+        mock_repo
+            .expect_get_mcp_by_user_id()
+            .with(eq(user_id))
+            .times(1)
+            .returning({
+                let mcp_token = mcp_token.clone();
+                {
+                    let mcp_token = mcp_token.clone();
+                    move |_| {
+                        let mcp_token_clone = mcp_token.clone();
+                        Box::pin(async move { Ok(Some(mcp_token_clone)) })
+                    }
+                }
+            });
+
+        let result = mock_repo.get_mcp_by_user_id(user_id).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().unwrap(), "secure_mcp_token");
+    }
+
+    #[tokio::test]
+    async fn test_regenerate_mcp_token_success() {
+        let mut mock_repo = MockUserRepositoryMcp::new();
+        let user_id = Uuid::new_v4();
+
+        mock_repo
+            .expect_regenerate_mcp_token()
+            .with(eq(user_id))
+            .times(1)
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        let result = mock_repo.regenerate_mcp_token(user_id).await;
+        assert!(result.is_ok());
+    }
+}

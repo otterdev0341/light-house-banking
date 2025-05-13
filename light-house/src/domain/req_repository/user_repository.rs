@@ -5,9 +5,10 @@ use crate::{domain::{dto::auth_dto::{ReqSignUpDto, ReqUpdateUserDto}, entities::
 
 
 
-
+// done impl in to repostiroy_impl
 
 #[async_trait::async_trait]
+#[mockall::automock]
 pub trait UserRepositoryUtility: Send + Sync {
     // check is data unique before create
     async fn find_by_username(&self, name: &str) -> Result<Option<user::Model>, RepositoryError>;
@@ -15,6 +16,7 @@ pub trait UserRepositoryUtility: Send + Sync {
 }
 
 #[async_trait::async_trait]
+#[mockall::automock]
 pub trait UserRepositoryBase: Send + Sync {
     async fn create(&self, dto: ReqSignUpDto) -> Result<user::Model, RepositoryError>;
     async fn find_by_id(&self, id: Uuid) -> Result<Option<user::Model>, RepositoryError>;
@@ -25,6 +27,7 @@ pub trait UserRepositoryBase: Send + Sync {
 
 
 #[async_trait::async_trait]
+#[mockall::automock]
 pub trait UserRepositoryMcp: Send + Sync{
     async fn get_mcp_by_user_id(&self, user_id: Uuid) -> Result<Option<String>, RepositoryError>;
     async fn regenerate_mcp_token(&self, user_id: Uuid) -> Result<(), RepositoryError>;

@@ -24,7 +24,7 @@ pub struct ResSignInDto{
 }
 
 
-#[derive(Deserialize,Validate, ToSchema,Debug)]
+#[derive(Deserialize,Validate, ToSchema,Debug, PartialEq, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct ReqSignUpDto{
     #[validate(length(min = 6, message = "Username must be at least 6 characters"))]

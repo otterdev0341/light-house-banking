@@ -10,7 +10,7 @@ use validator::Validate;
 pub struct ReqCreateExpenseDto {
     #[validate(length(min = 1, message = "The name must not be empty"))]
     pub description: String,
-    pub expense_type_id: i32,
+    pub expense_type_id: String,
 
 }
 
@@ -20,7 +20,7 @@ pub struct ReqCreateExpenseDto {
 #[serde(crate = "rocket::serde")]
 pub struct ReqUpdateExpenseDto {
     pub description: Option<String>,
-    pub expense_type_id: Option<i32>
+    pub expense_type_id: Option<String>
 }
 
 

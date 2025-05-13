@@ -5,3 +5,4 @@ pub mod asset_repo;
 pub mod contact_type_repo;
 pub mod contact_repo;
 pub mod expense_type_repos;
+pub mod expense_repo;

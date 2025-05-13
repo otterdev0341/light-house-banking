@@ -1,4 +1,4 @@
-pub mod base_repository;
+
 pub mod user_repository;
 pub mod asset_type_repository;
 pub mod asset_repository;

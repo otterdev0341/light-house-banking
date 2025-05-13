@@ -1,5 +1,6 @@
 use rocket::{serde::{Deserialize, Serialize}, Responder};
 use utoipa::ToSchema;
+use uuid::Uuid;
 use validator::Validate;
 
 
@@ -18,7 +19,8 @@ pub struct ReqSignInDto{
 #[serde(crate = "rocket::serde")]
 pub struct ResSignInDto{
     
-    pub token: String
+    pub token: String,
+    
 }
 
 
@@ -48,7 +50,7 @@ pub struct ReqSignUpDto{
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct Claims {
-    pub sub: i32,
+    pub sub: Uuid,
     pub role: String,
     pub exp: u64,
 }
@@ -63,4 +65,17 @@ pub struct ReqUpdateUserDto{
     pub last_name: Option<String>,
     pub gender: Option<String>,
 
+}
+
+
+#[derive(Deserialize,Validate, ToSchema,Debug)]
+#[serde(crate = "rocket::serde")]
+pub struct ResMeDto {
+    pub id: String,
+    pub gender: String,
+    pub user_role: String,
+    pub username: String,
+    pub email: String,
+    pub first_name: String,
+    pub last_name: String
 }

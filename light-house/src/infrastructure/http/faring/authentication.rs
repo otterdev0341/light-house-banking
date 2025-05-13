@@ -1,10 +1,11 @@
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use rocket::{http::Status, request::{self, FromRequest, Outcome}, Request};
+use uuid::Uuid;
 
 use crate::{configuration::jwt_config::JwtSecret, domain::dto::auth_dto::Claims};
 
 pub struct AuthenticatedUser {
-    pub id: i32,
+    pub id: Uuid,
     
 }
 

@@ -14,11 +14,10 @@ pub struct ReqCreateExpenseTypeDto {
 }
 
 
-#[derive(Debug, Serialize, Deserialize, ToSchema, Validate)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(crate = "rocket::serde")]
 pub struct ReqUpdateExpenseTypeDto {
-    #[validate(length(min = 1, message = "The name must not be empty"))]
-    pub name: String,
+    pub name: Option<String>
 }
 
 

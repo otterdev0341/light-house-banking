@@ -171,7 +171,7 @@ impl AssetTypeRepositoryUtility for AssetTypeRepositoryImpl{
         // If the count is greater than 0, the asset type is in use
         Ok(count > 0)
     }
-    async fn fine_all_by_user_id(&self, user_id: Uuid) -> Result<Vec<asset_type::Model>, String>
+    async fn find_all_by_user_id(&self, user_id: Uuid) -> Result<Vec<asset_type::Model>, String>
     {
         // Query the database to retrieve all asset types for the given user
         let asset_types = asset_type::Entity::find()

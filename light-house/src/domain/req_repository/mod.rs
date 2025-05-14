@@ -8,3 +8,4 @@ pub mod contact_repository;
 pub mod transaction_repository;
 pub mod auth_repository;
 pub mod expense_type_repository;
+pub mod balance_repository;

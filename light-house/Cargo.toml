@@ -35,6 +35,8 @@ uuid = "1.16.0"
 jsonwebtoken = "9.3.1"
 rand = "0.9.1"
 bcrypt = "0.17.0"
+rust_decimal = "1.31.0"
+rust_decimal_macros = "1.31.0"
 # database connection
 sea-orm = { version = "1.1.11", features = [ 
     "sqlx-mysql", 

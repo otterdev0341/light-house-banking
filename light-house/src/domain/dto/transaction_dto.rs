@@ -4,11 +4,6 @@ use validator::Validate;
 
 
 
-
-// Tranfer
-
-
-
 // >>>>>>>> Payment <<<<<<<<
 #[derive(Debug, Serialize, Deserialize, ToSchema, Validate)]
 #[serde(crate = "rocket::serde")]

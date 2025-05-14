@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use uuid::Uuid;
-
+use rust_decimal::Decimal;
+use rust_decimal::prelude::*;
 use crate::{domain::{dto::transaction_dto::{ReqCreateIncomeDto, ReqUpdateIncomeDto}, entities::transaction, req_repository::transaction_repository::RecordIncomeRepositoryUtility}, soc::soc_repository::RepositoryError};
 
 

@@ -3,7 +3,9 @@ use std::sync::Arc;
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use uuid::Uuid;
 
-use crate::{domain::{dto::asset_dto::{ReqCreateAssetDto, ReqUpdateAssetDto}, entities::asset, req_repository::asset_repository::{AssetRepositoryBase, AssetRepositoryUtility}}, soc::soc_repository::RepositoryError};
+use crate::{domain::{dto::asset_dto::{ReqCreateAssetDto, ReqUpdateAssetDto}, entities::asset, req_repository::{asset_repository::{AssetRepositoryBase, AssetRepositoryUtility}, balance_repository::BalanceRepositoryBase}}, soc::soc_repository::RepositoryError};
+
+use super::balance_repo::BalanceRepositoryImpl;
 
 
 
@@ -31,7 +33,7 @@ impl AssetRepositoryBase for AssetRepositoryImpl{
         -> Result<asset::Model, RepositoryError>
     {
          // Create the ActiveModel for the asset
-         let new_asset = asset::ActiveModel {
+        let new_asset = asset::ActiveModel {
             id: Set(Uuid::new_v4().as_bytes().to_vec()), // Generate a new UUID for the asset
             name: Set(dto.name),
             asset_type_id: Set(dto.asset_type_id.as_bytes().to_vec()), // Set the asset type ID
@@ -53,6 +55,19 @@ impl AssetRepositoryBase for AssetRepositoryImpl{
                 }
                 RepositoryError::DatabaseError(err.to_string())
             })?;
+
+        // Create a corresponding CurrentSheet record with an initial balance of 0
+        let balance_repo = BalanceRepositoryImpl {
+            db_pool: Arc::clone(&self.db_pool),
+        };
+
+        balance_repo
+            .create_current_sheet(
+                user_id,
+                Uuid::from_slice(&inserted_asset.id).unwrap(),
+                0.0, // Initial balance is 0
+            )
+            .await?;
 
         Ok(inserted_asset)
     }
@@ -130,16 +145,15 @@ impl AssetRepositoryBase for AssetRepositoryImpl{
                 active_model.name = Set(name);
             }
         }
-    
+
         if let Some(asset_type_id) = dto.asset_type_id {
             active_model.asset_type_id = Set(
                 Uuid::parse_str(&asset_type_id)
                     .map_err(|err| RepositoryError::InvalidInput(err.to_string()))?
                     .as_bytes()
-                    .to_vec()
+                    .to_vec(),
             );
         }
-
 
         // Save the updated asset to the database
         let updated_asset = active_model
@@ -156,6 +170,8 @@ impl AssetRepositoryBase for AssetRepositoryImpl{
                 RepositoryError::DatabaseError(err.to_string())
             })?;
 
+        // No need to update the CurrentSheet here since the balance is not affected
+
         Ok(updated_asset)
     }
 
@@ -169,12 +185,12 @@ impl AssetRepositoryBase for AssetRepositoryImpl{
         -> Result<(), RepositoryError>
     {
          // Attempt to delete the asset by ID and ensure it belongs to the user
-         let result = asset::Entity::delete_many()
-            .filter(asset::Column::Id.eq(asset_id.as_bytes().to_vec())) // Filter by asset ID
-            .filter(asset::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
-            .exec(self.db_pool.as_ref())
-            .await
-            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+        let result = asset::Entity::delete_many()
+        .filter(asset::Column::Id.eq(asset_id.as_bytes().to_vec())) // Filter by asset ID
+        .filter(asset::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
+        .exec(self.db_pool.as_ref())
+        .await
+        .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
 
         // Check if any rows were affected (i.e., if the asset was deleted)
         if result.rows_affected == 0 {
@@ -182,9 +198,18 @@ impl AssetRepositoryBase for AssetRepositoryImpl{
                 "Asset with ID {} not found for user {}",
                 asset_id, user_id
             )));
-     }
+        }
 
-     Ok(())
+        // Delete the corresponding CurrentSheet record
+        let balance_repo = BalanceRepositoryImpl {
+            db_pool: Arc::clone(&self.db_pool),
+        };
+
+        balance_repo
+            .delete_current_sheet_by_asset_id(user_id, asset_id)
+            .await?;
+
+        Ok(())
     }
 }
 

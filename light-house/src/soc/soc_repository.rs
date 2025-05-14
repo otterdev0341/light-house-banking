@@ -40,6 +40,9 @@ pub enum RepositoryError {
     #[error("Operation failed: {0}")]
     OperationFailed(String),
     // Add other specific data access errors as needed
+
+    #[error("Permission denied: {0}")]
+    PermissionDenied(String), // For permission-related errors
 }
 
 // Example: If you are using SeaORM, you might convert its DbErr

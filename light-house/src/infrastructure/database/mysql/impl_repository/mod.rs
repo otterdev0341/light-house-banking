@@ -8,3 +8,4 @@ pub mod expense_type_repos;
 pub mod expense_repo;
 pub mod transaction;
 pub mod balance_repo;
+pub mod role_repo;

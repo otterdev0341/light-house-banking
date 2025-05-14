@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use sea_orm::TransactionTrait;
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, ModelTrait};
 use uuid::Uuid;
 use rust_decimal::Decimal;
@@ -36,9 +37,16 @@ impl RecordIncomeRepositoryUtility for IncomeRepositoryImpl {
     )
          -> Result<transaction::Model, RepositoryError>
     {
-        let balance_repo = BalanceRepositoryImpl { db_pool: Arc::clone(&self.db_pool) };
+        // Start a transaction
+        let txn = self.db_pool.begin().await.map_err(|err| {
+            RepositoryError::DatabaseError(format!("Failed to start transaction: {}", err))
+        })?;
 
-        // 1. Create the ActiveModel for the income record
+        let balance_repo = BalanceRepositoryImpl {
+            db_pool: Arc::clone(&self.db_pool),
+        };
+
+        // Create the ActiveModel for the income record
         let new_income_record = transaction::ActiveModel {
             id: Set(Uuid::new_v4().as_bytes().to_vec()), // Generate a new UUID for the transaction
             transaction_type_id: Set(income_record_dto.transaction_type_id.as_bytes().to_vec()),
@@ -47,41 +55,70 @@ impl RecordIncomeRepositoryUtility for IncomeRepositoryImpl {
             contact_id: Set(Some(income_record_dto.contact_id.as_bytes().to_vec())),
             note: Set(income_record_dto.note),
             user_id: Set(user_id.as_bytes().to_vec()),
-            // created_at and updated_at will be set by default by the database or ActiveModel defaults
             ..Default::default()
         };
 
-        // 2. Insert the income record into the database
-        let inserted_income_record = new_income_record
-            .insert(self.db_pool.as_ref())
+        // Insert the income record into the database
+        let inserted_income_record = match new_income_record.insert(&txn).await {
+            Ok(record) => record,
+            Err(err) => {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::DatabaseError(err.to_string()));
+            }
+        };
+
+        // Update the balance in the CurrentSheet table
+        let asset_id_uuid = match Uuid::from_slice(&inserted_income_record.asset_id) {
+            Ok(uuid) => uuid,
+            Err(e) => {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::OperationFailed(format!(
+                    "Invalid asset UUID: {}",
+                    e
+                )));
+            }
+        };
+
+        let current_sheet = match balance_repo
+            .get_current_sheet_by_asset_id(user_id, asset_id_uuid)
             .await
-            .map_err(|err| {
-                if let sea_orm::DbErr::Exec(exec_err) = &err {
-                    if exec_err.to_string().contains("FOREIGN KEY") {
-                        return RepositoryError::OperationFailed(
-                            "Invalid foreign key reference in the income record".to_string(),
-                        );
-                    }
-                }
-                RepositoryError::DatabaseError(err.to_string())
-            })?;
+        {
+            Ok(Some(sheet)) => sheet,
+            Ok(None) => {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::NotFound(format!(
+                    "Current sheet not found for asset {}",
+                    asset_id_uuid
+                )));
+            }
+            Err(err) => {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(err);
+            }
+        };
 
-        // 3. Update the current sheet balance
-        let asset_id_uuid = income_record_dto.asset_id;
-        let current_sheet = balance_repo
-            .get_current_sheet_by_asset_id(user_id, Uuid::parse_str(&asset_id_uuid).map_err(|e| RepositoryError::OperationFailed(format!("Invalid asset UUID: {}", e)))?)
-            .await?
-            .ok_or_else(|| RepositoryError::NotFound(format!("Current sheet not found for asset {}", asset_id_uuid)))?;
-        
-        let new_balance = current_sheet.balance + Decimal::from_f64(inserted_income_record.amount).ok_or_else(|| RepositoryError::OperationFailed("Failed to convert amount to Decimal".to_string()))?;
-        
-        // Convert Decimal to Option<f64> for update_current_sheet
-        let new_balance_f64 = new_balance.to_f64(); 
+        let new_balance = match Decimal::from_f64(inserted_income_record.amount) {
+            Some(amount) => current_sheet.balance + amount,
+            None => {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::OperationFailed(
+                    "Failed to convert amount to Decimal".to_string(),
+                ));
+            }
+        };
 
-        balance_repo
-            .update_current_sheet(user_id, Uuid::parse_str(&asset_id_uuid).map_err(|e| RepositoryError::OperationFailed(format!("Invalid asset UUID: {}", e)))?, new_balance_f64)
-            .await?;
+        if let Err(err) = balance_repo
+            .update_current_sheet(user_id, asset_id_uuid, Some(new_balance.to_f64().unwrap()))
+            .await
+        {
+            txn.rollback().await.ok(); // Rollback on error
+            return Err(err);
+        }
 
+        // Commit the transaction
+        txn.commit().await.map_err(|err| {
+            RepositoryError::DatabaseError(format!("Failed to commit transaction: {}", err))
+        })?;
 
         Ok(inserted_income_record)
     }
@@ -92,22 +129,48 @@ impl RecordIncomeRepositoryUtility for IncomeRepositoryImpl {
         user_id: Uuid, 
         transaction_id: Uuid, income_record_dto: ReqUpdateIncomeDto
     ) -> Result<transaction::Model, RepositoryError> {
-        let balance_repo = BalanceRepositoryImpl { db_pool: Arc::clone(&self.db_pool) };
+        // Start a transaction
+        let txn = self.db_pool.begin().await.map_err(|err| {
+            RepositoryError::DatabaseError(format!("Failed to start transaction: {}", err))
+        })?;
 
-        // 1. Fetch the original transaction to get old_amount and old_asset_id
-        let original_transaction = transaction::Entity::find_by_id(transaction_id.as_bytes().to_vec())
-            .filter(transaction::Column::Id.eq(transaction_id.as_bytes().to_vec())) // Filter by transaction ID
+        let balance_repo = BalanceRepositoryImpl {
+            db_pool: Arc::clone(&self.db_pool),
+        };
+
+        // Fetch the original transaction
+        let original_transaction = match transaction::Entity::find_by_id(transaction_id.as_bytes().to_vec())
             .filter(transaction::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
-            .one(self.db_pool.as_ref())
+            .one(&txn)
             .await
-            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?
-            .ok_or_else(|| RepositoryError::NotFound(format!("Transaction {} not found for user {}", transaction_id, user_id)))?;
+        {
+            Ok(Some(transaction)) => transaction,
+            Ok(None) => {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::NotFound(format!(
+                    "Transaction {} not found for user {}",
+                    transaction_id, user_id
+                )));
+            }
+            Err(err) => {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::DatabaseError(err.to_string()));
+            }
+        };
 
         let old_amount = original_transaction.amount;
-        let old_asset_id_uuid = Uuid::from_slice(&original_transaction.asset_id)
-            .map_err(|e| RepositoryError::OperationFailed(format!("Invalid old asset UUID: {}", e)))?;
+        let old_asset_id_uuid = match Uuid::from_slice(&original_transaction.asset_id) {
+            Ok(uuid) => uuid,
+            Err(e) => {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::OperationFailed(format!(
+                    "Invalid old asset UUID: {}",
+                    e
+                )));
+            }
+        };
 
-        // 2. Prepare and execute the update for the transaction record itself
+        // Update the transaction
         let mut active_model: transaction::ActiveModel = original_transaction.into();
         if let Some(amount) = income_record_dto.amount {
             active_model.amount = Set(amount);
@@ -115,69 +178,153 @@ impl RecordIncomeRepositoryUtility for IncomeRepositoryImpl {
         if let Some(asset_id) = income_record_dto.asset_id {
             active_model.asset_id = Set(asset_id.as_bytes().to_vec());
         }
-        // contact_id can be None, so handle it carefully if it's optional in DTO
-        active_model.contact_id = match income_record_dto.contact_id {
-            Some(id) => Set(Some(id.as_bytes().to_vec())),
-            None => if active_model.contact_id.is_set() || active_model.contact_id.is_unchanged() { 
-                        // If it was already set and DTO provides None, it means we want to set it to NULL
-                        // However, if DTO field is Option<Option<Uuid>>, this logic needs adjustment.
-                        // Assuming ReqUpdateIncomeDto.contact_id: Option<Uuid> means "if Some, update, if None, don't change"
-                        // If ReqUpdateIncomeDto.contact_id: Option<Option<Uuid>> then Some(None) would mean set to NULL.
-                        // For now, let's assume Option<Uuid> means update if Some.
-                        active_model.contact_id // Keep as is if DTO field is None
-                    } else {
-                        Set(None) // Default to None if not previously set and DTO is None
-                    }
-        };
+        if let Some(contact_id) = income_record_dto.contact_id {
+            active_model.contact_id = Set(Some(contact_id.as_bytes().to_vec()));
+        }
         if let Some(note) = income_record_dto.note {
             active_model.note = Set(note);
         }
-        active_model.updated_at = Set(Some(chrono::Utc::now())); // Update timestamp
 
-        let updated_transaction = active_model.update(self.db_pool.as_ref()).await.map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+        let updated_transaction = match active_model.update(&txn).await {
+            Ok(transaction) => transaction,
+            Err(err) => {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::DatabaseError(err.to_string()));
+            }
+        };
 
-        // 3. Get new amount and new asset_id
+        // Update balances
         let new_amount = updated_transaction.amount;
-        let new_asset_id_uuid = Uuid::from_slice(&updated_transaction.asset_id)
-            .map_err(|e| RepositoryError::OperationFailed(format!("Invalid new asset UUID: {}", e)))?;
+        let new_asset_id_uuid = match Uuid::from_slice(&updated_transaction.asset_id) {
+            Ok(uuid) => uuid,
+            Err(e) => {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::OperationFailed(format!(
+                    "Invalid new asset UUID: {}",
+                    e
+                )));
+            }
+        };
 
-        // 4. Update balances
         if old_asset_id_uuid == new_asset_id_uuid {
             // Asset ID hasn't changed, calculate net change
             let balance_change = new_amount - old_amount;
-            let current_sheet = balance_repo
+            let current_sheet = match balance_repo
                 .get_current_sheet_by_asset_id(user_id, new_asset_id_uuid)
-                .await?
-                .ok_or_else(|| RepositoryError::NotFound(format!("Current sheet for asset {} not found", new_asset_id_uuid)))?;
-            
-            let final_balance = current_sheet.balance + Decimal::from_f64(balance_change).ok_or_else(|| RepositoryError::OperationFailed("Failed to convert balance change to Decimal".to_string()))?;
-            balance_repo
-                .update_current_sheet(user_id, new_asset_id_uuid, final_balance.to_f64())
-                .await?;
-        } else {
-            // Asset ID has changed:
-            // 4a. Revert old amount from old asset's balance
-            let old_asset_sheet = balance_repo
-                .get_current_sheet_by_asset_id(user_id, old_asset_id_uuid)
-                .await?
-                .ok_or_else(|| RepositoryError::NotFound(format!("Current sheet for old asset {} not found", old_asset_id_uuid)))?;
-            
-            let balance_after_reverting_old = old_asset_sheet.balance - Decimal::from_f64(old_amount).ok_or_else(|| RepositoryError::OperationFailed("Failed to convert old_amount to Decimal".to_string()))?;
-            balance_repo
-                .update_current_sheet(user_id, old_asset_id_uuid, balance_after_reverting_old.to_f64())
-                .await?;
+                .await
+            {
+                Ok(Some(sheet)) => sheet,
+                Ok(None) => {
+                    txn.rollback().await.ok(); // Rollback on error
+                    return Err(RepositoryError::NotFound(format!(
+                        "Current sheet for asset {} not found",
+                        new_asset_id_uuid
+                    )));
+                }
+                Err(err) => {
+                    txn.rollback().await.ok(); // Rollback on error
+                    return Err(err);
+                }
+            };
 
-            // 4b. Apply new amount to new asset's balance
-            let new_asset_sheet = balance_repo
+            let final_balance = match Decimal::from_f64(balance_change) {
+                Some(change) => current_sheet.balance + change,
+                None => {
+                    txn.rollback().await.ok(); // Rollback on error
+                    return Err(RepositoryError::OperationFailed(
+                        "Failed to convert balance change to Decimal".to_string(),
+                    ));
+                }
+            };
+
+            if let Err(err) = balance_repo
+                .update_current_sheet(user_id, new_asset_id_uuid, Some(final_balance.to_f64().unwrap()))
+                .await
+            {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(err);
+            }
+        } else {
+            // Asset ID has changed
+            // Revert old amount from old asset
+            let old_asset_sheet = match balance_repo
+                .get_current_sheet_by_asset_id(user_id, old_asset_id_uuid)
+                .await
+            {
+                Ok(Some(sheet)) => sheet,
+                Ok(None) => {
+                    txn.rollback().await.ok(); // Rollback on error
+                    return Err(RepositoryError::NotFound(format!(
+                        "Current sheet for old asset {} not found",
+                        old_asset_id_uuid
+                    )));
+                }
+                Err(err) => {
+                    txn.rollback().await.ok(); // Rollback on error
+                    return Err(err);
+                }
+            };
+
+            let balance_after_reverting_old = match Decimal::from_f64(old_amount) {
+                Some(amount) => old_asset_sheet.balance - amount,
+                None => {
+                    txn.rollback().await.ok(); // Rollback on error
+                    return Err(RepositoryError::OperationFailed(
+                        "Failed to convert old_amount to Decimal".to_string(),
+                    ));
+                }
+            };
+
+            if let Err(err) = balance_repo
+                .update_current_sheet(user_id, old_asset_id_uuid, Some(balance_after_reverting_old.to_f64().unwrap()))
+                .await
+            {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(err);
+            }
+
+            // Apply new amount to new asset
+            let new_asset_sheet = match balance_repo
                 .get_current_sheet_by_asset_id(user_id, new_asset_id_uuid)
-                .await?
-                .ok_or_else(|| RepositoryError::NotFound(format!("Current sheet for new asset {} not found", new_asset_id_uuid)))?;
-            
-            let final_new_asset_balance = new_asset_sheet.balance + Decimal::from_f64(new_amount).ok_or_else(|| RepositoryError::OperationFailed("Failed to convert new amount to Decimal".to_string()))?;
-            balance_repo
-                .update_current_sheet(user_id, new_asset_id_uuid, final_new_asset_balance.to_f64())
-                .await?;
+                .await
+            {
+                Ok(Some(sheet)) => sheet,
+                Ok(None) => {
+                    txn.rollback().await.ok(); // Rollback on error
+                    return Err(RepositoryError::NotFound(format!(
+                        "Current sheet for new asset {} not found",
+                        new_asset_id_uuid
+                    )));
+                }
+                Err(err) => {
+                    txn.rollback().await.ok(); // Rollback on error
+                    return Err(err);
+                }
+            };
+
+            let final_new_asset_balance = match Decimal::from_f64(new_amount) {
+                Some(amount) => new_asset_sheet.balance + amount,
+                None => {
+                    txn.rollback().await.ok(); // Rollback on error
+                    return Err(RepositoryError::OperationFailed(
+                        "Failed to convert new amount to Decimal".to_string(),
+                    ));
+                }
+            };
+
+            if let Err(err) = balance_repo
+                .update_current_sheet(user_id, new_asset_id_uuid, Some(final_new_asset_balance.to_f64().unwrap()))
+                .await
+            {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(err);
+            }
         }
+
+        // Commit the transaction
+        txn.commit().await.map_err(|err| {
+            RepositoryError::DatabaseError(format!("Failed to commit transaction: {}", err))
+        })?;
 
         Ok(updated_transaction)
     }
@@ -189,39 +336,109 @@ impl RecordIncomeRepositoryUtility for IncomeRepositoryImpl {
     )
          -> Result<(), RepositoryError>
     {
-        let balance_repo = BalanceRepositoryImpl { db_pool: Arc::clone(&self.db_pool) };
+        // Start a transaction
+        let txn = self.db_pool.begin().await.map_err(|err| {
+            RepositoryError::DatabaseError(format!("Failed to start transaction: {}", err))
+        })?;
 
-        // 1. Fetch the transaction to be deleted to get its amount and asset_id
-        let transaction_to_delete = transaction::Entity::find_by_id(transaction_id.as_bytes().to_vec())
-            .filter(transaction::Column::Id.eq(transaction_id.as_bytes().to_vec())) // Filter by transaction ID
+        let balance_repo = BalanceRepositoryImpl {
+            db_pool: Arc::clone(&self.db_pool),
+        };
+
+        // Fetch the transaction to be deleted
+        let transaction_to_delete = match transaction::Entity::find_by_id(transaction_id.as_bytes().to_vec())
             .filter(transaction::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
-            .one(self.db_pool.as_ref())
+            .one(&txn)
             .await
-            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?
-            .ok_or_else(|| RepositoryError::NotFound(format!("Income record {} not found for user {}", transaction_id, user_id)))?;
+        {
+            Ok(Some(transaction)) => transaction,
+            Ok(None) => {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::NotFound(format!(
+                    "Income record {} not found for user {}",
+                    transaction_id, user_id
+                )));
+            }
+            Err(err) => {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::DatabaseError(err.to_string()));
+            }
+        };
 
         let amount_to_subtract = transaction_to_delete.amount;
-        let asset_id_uuid = Uuid::from_slice(&transaction_to_delete.asset_id)
-            .map_err(|e| RepositoryError::OperationFailed(format!("Invalid asset UUID in transaction to delete: {}", e)))?;
+        let asset_id_uuid = match Uuid::from_slice(&transaction_to_delete.asset_id) {
+            Ok(uuid) => uuid,
+            Err(e) => {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::OperationFailed(format!(
+                    "Invalid asset UUID: {}",
+                    e
+                )));
+            }
+        };
 
-        // 2. Delete the income record
-        let delete_result = transaction::Entity::delete_by_id(transaction_id.as_bytes().to_vec())
-            .filter(transaction::Column::Id.eq(transaction_id.as_bytes().to_vec())) // Filter by transaction ID
-            .filter(transaction::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
-            .exec(self.db_pool.as_ref())
+        // Delete the income record
+        let delete_result = match transaction::Entity::delete_by_id(transaction_id.as_bytes().to_vec())
+            .exec(&txn)
             .await
-            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+        {
+            Ok(result) => result,
+            Err(err) => {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::DatabaseError(err.to_string()));
+            }
+        };
 
         if delete_result.rows_affected == 0 {
-            // This case should ideally be caught by the find_by_id above, but as a safeguard:
-            return Err(RepositoryError::NotFound(format!("Income record {} not found for user {} during delete operation", transaction_id, user_id)));
+            txn.rollback().await.ok(); // Rollback on error
+            return Err(RepositoryError::NotFound(format!(
+                "Income record {} not found for user {} during delete operation",
+                transaction_id, user_id
+            )));
         }
 
-        // 3. Update the current sheet balance
-        let current_sheet = balance_repo.get_current_sheet_by_asset_id(user_id, asset_id_uuid).await?
-            .ok_or_else(|| RepositoryError::NotFound(format!("Current sheet not found for asset {}", asset_id_uuid)))?;
-        let new_balance = current_sheet.balance - Decimal::from_f64(amount_to_subtract).ok_or_else(|| RepositoryError::OperationFailed("Failed to convert amount_to_subtract to Decimal".to_string()))?;
-        balance_repo.update_current_sheet(user_id, asset_id_uuid, new_balance.to_f64()).await?;
+        // Update the balance in the CurrentSheet table
+        let current_sheet = match balance_repo
+            .get_current_sheet_by_asset_id(user_id, asset_id_uuid)
+            .await
+        {
+            Ok(Some(sheet)) => sheet,
+            Ok(None) => {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::NotFound(format!(
+                    "Current sheet not found for asset {}",
+                    asset_id_uuid
+                )));
+            }
+            Err(err) => {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(err);
+            }
+        };
+
+        let new_balance = match Decimal::from_f64(amount_to_subtract) {
+            Some(amount) => current_sheet.balance - amount,
+            None => {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::OperationFailed(
+                    "Failed to convert amount_to_subtract to Decimal".to_string(),
+                ));
+            }
+        };
+
+        if let Err(err) = balance_repo
+            .update_current_sheet(user_id, asset_id_uuid, Some(new_balance.to_f64().unwrap()))
+            .await
+        {
+            txn.rollback().await.ok(); // Rollback on error
+            return Err(err);
+        }
+
+        // Commit the transaction
+        txn.commit().await.map_err(|err| {
+            RepositoryError::DatabaseError(format!("Failed to commit transaction: {}", err))
+        })?;
+
         Ok(())
     }
 

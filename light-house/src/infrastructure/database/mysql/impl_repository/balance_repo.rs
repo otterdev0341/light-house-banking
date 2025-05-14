@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
-use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, QuerySelect};
 use sea_orm::{ActiveValue::Set, DatabaseConnection};
 use uuid::Uuid;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::*;
+use crate::domain::entities::asset;
+use crate::domain::req_repository::balance_repository::BalanceRepositoryUtill;
 use crate::{domain::{entities::current_sheet, req_repository::balance_repository::BalanceRepositoryBase}, soc::soc_repository::RepositoryError};
 
 
@@ -139,5 +141,49 @@ impl BalanceRepositoryBase for BalanceRepositoryImpl {
             .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
 
         Ok(())
+    }
+}
+
+
+#[async_trait::async_trait]
+impl BalanceRepositoryUtill for BalanceRepositoryImpl {
+
+    async fn get_all_current_sheets_by_asset_type_id(
+        &self, 
+        user_id: Uuid, 
+        asset_type_id: Uuid
+    ) 
+        -> Result<Vec<current_sheet::Model>, RepositoryError>
+    {
+       // Step 1: Query all AssetIds from the Asset table where AssetTypeId matches
+       let asset_ids = asset::Entity::find()
+       .filter(asset::Column::AssetTypeId.eq(asset_type_id.as_bytes().to_vec()))
+       .select_only()
+       .column(asset::Column::Id)
+       .into_values::<Vec<u8>, asset::Column>()
+       .all(self.db_pool.as_ref())
+       .await
+       .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+
+        // Convert AssetIds to a vector of UUIDs
+        let asset_ids: Vec<Uuid> = asset_ids
+            .into_iter()
+            .filter_map(|id| Uuid::from_slice(&id).ok())
+            .collect();
+
+        if asset_ids.is_empty() {
+            // If no matching assets are found, return an empty vector
+            return Ok(vec![]);
+        }
+
+        // Step 2: Query the CurrentSheet table using the AssetIds and UserId
+        let current_sheets = current_sheet::Entity::find()
+            .filter(current_sheet::Column::UserId.eq(user_id.as_bytes().to_vec()))
+            .filter(current_sheet::Column::AssetId.is_in(asset_ids.into_iter().map(|id| id.as_bytes().to_vec())))
+            .all(self.db_pool.as_ref())
+            .await
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+
+        Ok(current_sheets)
     }
 }

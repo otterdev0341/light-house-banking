@@ -24,12 +24,12 @@ pub struct ReqUpdateAssetDto {
     pub asset_type_id: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Default)]
 #[serde(crate = "rocket::serde")]
 pub struct ResEntryAssetDto{
-    pub id: i32,
+    pub id: String,
     pub name: String,
-    pub asset_type_id: String,
+    pub asset_type: String,
     pub created_at: String,
     pub updated_at: String,
 }

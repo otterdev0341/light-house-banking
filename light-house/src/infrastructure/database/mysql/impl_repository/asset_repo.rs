@@ -220,14 +220,14 @@ impl AssetRepositoryUtility for AssetRepositoryImpl{
         &self, 
         user_id: Uuid
     ) 
-        -> Result<Vec<asset::Model>, String>
+        -> Result<Vec<asset::Model>, RepositoryError>
     {
         // Query the database to retrieve all assets for the given user
         let assets = asset::Entity::find()
             .filter(asset::Column::UserId.eq(user_id.as_bytes().to_vec())) // Filter by user ID
             .all(self.db_pool.as_ref())
             .await
-            .map_err(|err| err.to_string())?;
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
 
         // Return the list of assets
         Ok(assets)

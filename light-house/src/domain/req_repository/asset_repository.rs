@@ -6,7 +6,7 @@ use crate::{domain::{dto::asset_dto::{ReqCreateAssetDto, ReqUpdateAssetDto}, ent
 #[async_trait::async_trait]
 #[mockall::automock]
 pub trait AssetRepositoryUtility: Send + Sync {
-    async fn find_all_by_user_id(&self, user_id: Uuid) -> Result<Vec<asset::Model>, String>;
+    async fn find_all_by_user_id(&self, user_id: Uuid) -> Result<Vec<asset::Model>, RepositoryError>;
     
 }
 

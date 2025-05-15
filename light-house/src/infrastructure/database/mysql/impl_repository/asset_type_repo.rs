@@ -158,7 +158,7 @@ impl AssetTypeRepositoryBase for AssetTypeRepositoryImpl{
 
 #[async_trait::async_trait]
 impl AssetTypeRepositoryUtility for AssetTypeRepositoryImpl{
-    async fn is_in_use(&self, user_id: Uuid, asset_type_id: Uuid) -> Result<bool, String>
+    async fn is_in_use(&self, user_id: Uuid, asset_type_id: Uuid) -> Result<bool, RepositoryError>
     {
         // Query the database to check if the asset type is in use
         let count = asset::Entity::find() // Replace with the correct module/entity name
@@ -166,12 +166,12 @@ impl AssetTypeRepositoryUtility for AssetTypeRepositoryImpl{
             .filter(asset::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
             .count(self.db_pool.as_ref())
             .await
-            .map_err(|err| err.to_string())?;
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
 
         // If the count is greater than 0, the asset type is in use
         Ok(count > 0)
     }
-    async fn find_all_by_user_id(&self, user_id: Uuid) -> Result<Vec<asset_type::Model>, String>
+    async fn find_all_by_user_id(&self, user_id: Uuid) -> Result<Vec<asset_type::Model>, RepositoryError>
     {
         // Query the database to retrieve all asset types for the given user
         let asset_types = asset_type::Entity::find()
@@ -181,6 +181,6 @@ impl AssetTypeRepositoryUtility for AssetTypeRepositoryImpl{
             .map_err(|err| RepositoryError::DatabaseError(err.to_string()));
 
         // Return the list of asset types
-        asset_types.map_err(|err| err.to_string()) // Convert the error type
+        asset_types.map_err(|err| RepositoryError::OperationFailed(err.to_string())) // Convert the error type
     }
 }

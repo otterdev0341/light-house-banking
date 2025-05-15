@@ -8,8 +8,8 @@ use crate::{domain::{dto::assest_type_dto::{ReqCreateAssetTypeDto, ReqUpdateAsse
 
 #[async_trait::async_trait]
 pub trait AssetTypeRepositoryUtility: Send + Sync {
-    async fn is_in_use(&self, user_id: Uuid, asset_type_id: Uuid) -> Result<bool, String>;
-    async fn find_all_by_user_id(&self, user_id: Uuid) -> Result<Vec<asset_type::Model>, String>;
+    async fn is_in_use(&self, user_id: Uuid, asset_type_id: Uuid) -> Result<bool, RepositoryError>;
+    async fn find_all_by_user_id(&self, user_id: Uuid) -> Result<Vec<asset_type::Model>, RepositoryError>;
 }
 
 #[async_trait::async_trait]

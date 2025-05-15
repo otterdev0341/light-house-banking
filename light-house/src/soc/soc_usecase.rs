@@ -22,6 +22,9 @@ pub enum UsecaseError {
 
     #[error("An unexpected error occurred: {0}")]
     Unexpected(String),
+
+    #[error("Invalid data: {0}")]
+    InvalidData(String),
 }
 
 // Validation error detail structure

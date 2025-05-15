@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::{domain::dto::auth_dto::{ReqSignInDto, ReqSignUpDto, ReqUpdateUserDto, ResMeDto, ResSignInDto}, soc::soc_usercase::UsecaseError};
+use crate::{domain::dto::auth_dto::{ReqSignInDto, ReqSignUpDto, ReqUpdateUserDto, ResMeDto, ResSignInDto}, soc::soc_usecase::UsecaseError};
 
 
 

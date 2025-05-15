@@ -9,3 +9,4 @@ pub mod dto_enum;
 pub mod transaction_dto;
 pub mod transaction_type_dto;
 pub mod current_sheet_dto;
+pub mod gender_dto;

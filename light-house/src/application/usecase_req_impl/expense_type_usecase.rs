@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::{domain::dto::expense_type_dto::{ReqCreateExpenseTypeDto, ReqUpdateExpenseTypeDto, ResEntryExpenseTypeDto, ResListExpenseTypeDto}, soc::soc_usercase::UsecaseError};
+use crate::{domain::dto::expense_type_dto::{ReqCreateExpenseTypeDto, ReqUpdateExpenseTypeDto, ResEntryExpenseTypeDto, ResListExpenseTypeDto}, soc::soc_usecase::UsecaseError};
 
 
 

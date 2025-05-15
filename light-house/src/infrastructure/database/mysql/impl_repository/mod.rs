@@ -9,3 +9,4 @@ pub mod expense_repo;
 pub mod transaction;
 pub mod balance_repo;
 pub mod role_repo;
+pub mod gender_repo;

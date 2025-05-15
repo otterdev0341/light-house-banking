@@ -11,3 +11,4 @@ pub mod expense_type_repository;
 pub mod balance_repository;
 pub mod user_role_repository;
 pub mod query_repository;
+pub mod gender_repository;

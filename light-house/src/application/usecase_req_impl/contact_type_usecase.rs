@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::{domain::dto::contact_type_dto::{ReqCreateContactTypeDto, ReqUpdateContactTypeDto, ResEntryContactTypeDto, ResListContactTypeDto}, soc::soc_usercase::UsecaseError};
+use crate::{domain::dto::contact_type_dto::{ReqCreateContactTypeDto, ReqUpdateContactTypeDto, ResEntryContactTypeDto, ResListContactTypeDto}, soc::soc_usecase::UsecaseError};
 
 
 

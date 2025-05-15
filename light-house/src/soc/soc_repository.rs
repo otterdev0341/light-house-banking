@@ -51,3 +51,5 @@ impl From<sea_orm::DbErr> for RepositoryError {
         RepositoryError::DatabaseError(err.to_string()) // Basic conversion
     }
 }
+
+

@@ -1,2 +1,2 @@
 pub mod soc_repository;
-pub mod soc_usercase;
+pub mod soc_usecase;

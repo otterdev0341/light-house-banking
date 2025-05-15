@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::{domain::dto::asset_dto::{ReqCreateAssetDto, ReqUpdateAssetDto, ResEntryAssetDto, ResListAssetDto}, soc::soc_usercase::UsecaseError};
+use crate::{domain::dto::asset_dto::{ReqCreateAssetDto, ReqUpdateAssetDto, ResEntryAssetDto, ResListAssetDto}, soc::soc_usecase::UsecaseError};
 
 
 

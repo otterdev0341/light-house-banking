@@ -156,5 +156,14 @@ impl RoleManagementRepository for RoleManagementRepositoryImpl {
         Ok(())
     }
 
+    async fn get_role_by_id(&self, role_id: Uuid) -> Result<Option<user_role::Model>, RepositoryError>
+    {
+      // Query the database to find the role by its ID
+      let role = user_role::Entity::find_by_id(role_id.as_bytes().to_vec())
+        .one(self.db_pool.as_ref())
+        .await
+        .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
 
+      Ok(role)
+    }
 }

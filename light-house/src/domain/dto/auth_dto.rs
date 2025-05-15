@@ -68,7 +68,7 @@ pub struct ReqUpdateUserDto{
 }
 
 
-#[derive(Deserialize,Validate, ToSchema,Debug)]
+#[derive(Deserialize,Validate, ToSchema,Debug, Default)]
 #[serde(crate = "rocket::serde")]
 pub struct ResMeDto {
     pub id: String,

@@ -185,7 +185,7 @@ impl ContactTypeRepositoryUtility for ContactTypeRepositoryImpl {
         name: &str,
         user_id: Uuid
     ) 
-        -> Result<Option<contact_type::Model>, String>
+        -> Result<Option<contact_type::Model>, RepositoryError>
     {
         // Query the database to find the contact type by name and ensure it belongs to the user
         let contact_type = contact_type::Entity::find()
@@ -193,7 +193,7 @@ impl ContactTypeRepositoryUtility for ContactTypeRepositoryImpl {
             .filter(contact_type::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
             .one(self.db_pool.as_ref())
             .await
-            .map_err(|err| err.to_string())?;
+            .map_err(|err| RepositoryError::from(err))?;
 
         // Return the contact type if found, or None if not found
         Ok(contact_type)
@@ -204,14 +204,14 @@ impl ContactTypeRepositoryUtility for ContactTypeRepositoryImpl {
         &self, 
         user_id: Uuid
     ) 
-        -> Result<Vec<contact_type::Model>, String>
+        -> Result<Vec<contact_type::Model>, RepositoryError>
     {
          // Query the database to retrieve all contact types for the given user
          let contact_types = contact_type::Entity::find()
          .filter(contact_type::Column::UserId.eq(user_id.as_bytes().to_vec())) // Filter by user ID
          .all(self.db_pool.as_ref())
          .await
-         .map_err(|err| err.to_string())?;
+         .map_err(|err| RepositoryError::from(err))?;
 
      // Return the list of contact types
         Ok(contact_types)

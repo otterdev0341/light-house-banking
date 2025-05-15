@@ -28,7 +28,7 @@ pub struct ReqUpdateContactDto {
 }
 
 
-#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, ToSchema, Default)]
 #[serde(crate = "rocket::serde")]
 pub struct ResEntryContactDto {
     pub id: String,
@@ -36,7 +36,7 @@ pub struct ResEntryContactDto {
     pub business_name: String,
     pub phone: String,
     pub description: String,
-    pub contact_type_id: String,
+    pub contact_type_name: String,
     pub created_at: String,
     pub updated_at: String,
 }

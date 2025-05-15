@@ -138,7 +138,7 @@ impl ExpenseTypeRepositoryBase for ExpenseTypeRepositoryImpl {
         let is_in_use = self
             .is_in_use(user_id, expense_type_id)
             .await
-            .map_err(|err| RepositoryError::DatabaseError(err))?;
+            .map_err(|err| RepositoryError::NotFound(err.to_string()))?;
 
         if is_in_use {
             return Err(RepositoryError::OperationFailed(format!(
@@ -179,7 +179,7 @@ impl ExpenseTypeRepositoryBase for ExpenseTypeRepositoryImpl {
 #[async_trait::async_trait]
 impl ExpenseTypeRepositoryUtility for ExpenseTypeRepositoryImpl{
     async fn is_in_use(&self, user_id: Uuid, expense_type_id: Uuid) 
-    -> Result<bool, String>
+    -> Result<bool, RepositoryError>
     {
         // Query the database to check if the expense type is in use
         let is_in_use = expense::Entity::find()
@@ -187,7 +187,7 @@ impl ExpenseTypeRepositoryUtility for ExpenseTypeRepositoryImpl{
             .filter(expense::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
             .count(self.db_pool.as_ref()) // Check if any record exists
             .await
-            .map_err(|err| err.to_string())?;
+            .map_err(|err| RepositoryError::from(err))?;
 
         // Return true if the expense type is in use, otherwise false
         Ok(is_in_use > 0)
@@ -195,14 +195,14 @@ impl ExpenseTypeRepositoryUtility for ExpenseTypeRepositoryImpl{
 
 
     async fn find_all_by_user_id(&self, user_id: Uuid) 
-    -> Result<Vec<expense_type::Model>, String>
+    -> Result<Vec<expense_type::Model>, RepositoryError>
     {
         // Query the database to retrieve all expense types for the given user
         let expense_types = expense_type::Entity::find()
             .filter(expense_type::Column::UserId.eq(user_id.as_bytes().to_vec())) // Filter by user ID
             .all(self.db_pool.as_ref())
             .await
-            .map_err(|err| err.to_string())?;
+            .map_err(|err| RepositoryError::from(err))?;
 
         // Return the list of expense types
         Ok(expense_types)

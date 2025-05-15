@@ -8,8 +8,8 @@ use crate::{domain::{dto::expense_type_dto::{ReqCreateExpenseTypeDto, ReqUpdateE
 
 #[async_trait::async_trait]
 pub trait ExpenseTypeRepositoryUtility: Send + Sync {
-    async fn is_in_use(&self, user_id: Uuid, expesne_type_id: Uuid) -> Result<bool, String>;
-    async fn find_all_by_user_id(&self, user_id: Uuid) -> Result<Vec<expense_type::Model>, String>;
+    async fn is_in_use(&self, user_id: Uuid, expesne_type_id: Uuid) -> Result<bool, RepositoryError>;
+    async fn find_all_by_user_id(&self, user_id: Uuid) -> Result<Vec<expense_type::Model>, RepositoryError>;
     async fn find_by_user_id_and_expense_type_id(&self, expesne_type_id: Uuid, user_id: Uuid) -> Result<Option<expense_type::Model>, RepositoryError>;
 }
 

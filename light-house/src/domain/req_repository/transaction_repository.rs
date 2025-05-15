@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::{domain::{dto::transaction_dto::{ReqCreateIncomeDto, ReqCreatePaymentDto, ReqCreateTransferDto, ReqUpdateIncomeDto, ReqUpdatePaymentDto, ReqUpdateTransferDto, ResEntryTransferDto}, entities::transaction}, soc::soc_repository::RepositoryError};
+use crate::{domain::{dto::transaction_dto::{ReqCreateIncomeDto, ReqCreatePaymentDto, ReqCreateTransferDto, ReqUpdateIncomeDto, ReqUpdatePaymentDto, ReqUpdateTransferDto}, entities::transaction}, soc::soc_repository::RepositoryError};
 
 
 

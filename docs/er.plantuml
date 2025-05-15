@@ -153,7 +153,7 @@ User ||--o{ Asset : user_id
 User ||--o{ ExpenseType : user_id
 User ||--o{ Expense : user_id
 User ||--o{ ContactType : user_id
-User ||--o{ UserRoel : user_role_id
+User ||--o{ UserRole : user_role_id
 ' User ||--o{ Contact : user_id -- Replaced by UserContact
 User ||--o{ Transaction : user_id
 User ||--o{ CurrentSheet : user_id

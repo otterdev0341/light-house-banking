@@ -1,3 +1,4 @@
+#[allow(unused)]
 use sea_orm_migration::{prelude::*, schema::*};
 
 use super::{m20250512_114434_create_user_tb::User, m20250512_133540_create_contact_tb::Contact};

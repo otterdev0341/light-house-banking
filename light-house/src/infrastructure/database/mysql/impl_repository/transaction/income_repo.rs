@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use sea_orm::TransactionTrait;
-use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, ModelTrait};
+use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use uuid::Uuid;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::*;

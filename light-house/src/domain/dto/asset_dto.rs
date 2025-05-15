@@ -26,7 +26,7 @@ pub struct ReqUpdateAssetDto {
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(crate = "rocket::serde")]
-pub struct ResEntryUpdateAssetDto{
+pub struct ResEntryAssetDto{
     pub id: i32,
     pub name: String,
     pub asset_type_id: String,
@@ -39,5 +39,5 @@ pub struct ResEntryUpdateAssetDto{
 #[serde(crate = "rocket::serde")]
 pub struct ResListAssetDto {
     pub length: i32,
-    pub data: Vec<ResEntryUpdateAssetDto>,
+    pub data: Vec<ResEntryAssetDto>,
 }

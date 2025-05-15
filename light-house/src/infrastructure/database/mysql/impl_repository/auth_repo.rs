@@ -6,7 +6,7 @@ use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 
 use uuid::Uuid;
 
-use crate::{configuration::jwt_config::JwtSecret, domain::{dto::auth_dto::{Claims, ReqSignInDto, ReqSignUpDto, ReqUpdateUserDto, ResMeDto, ResSignInDto}, entities::{gender, user, user_role}, req_repository::{auth_repository::AuthRepository}}, infrastructure::http::response::otter_response::ErrorResponse};
+use crate::{configuration::jwt_config::JwtSecret, domain::{dto::auth_dto::{Claims, ReqSignInDto, ResMeDto, ResSignInDto}, entities::{gender, user, user_role}, req_repository::{auth_repository::AuthRepository}}, infrastructure::http::response::otter_response::ErrorResponse};
 
 
 
@@ -93,7 +93,7 @@ impl AuthRepository for AuthRepositoryImpl {
 }
 
 
-
+#[allow(dead_code)]
 impl AuthRepositoryImpl {
     async fn me(&self, user_id: Uuid) -> Result<ResMeDto, String> {
         // Create connection

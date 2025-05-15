@@ -1,6 +1,6 @@
 use rocket::serde::json::Json;
 
-use crate::domain::{dto::auth_dto::{ReqSignInDto, ReqSignUpDto, ResSignInDto}, entities::user};
+use crate::domain::dto::auth_dto::{ReqSignInDto, ResSignInDto};
 
 
 

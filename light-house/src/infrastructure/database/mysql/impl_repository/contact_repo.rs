@@ -3,7 +3,7 @@ use std::sync::Arc;
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QuerySelect, QueryTrait, TransactionTrait};
 use uuid::Uuid;
 
-use crate::{domain::{dto::contact_dto::{ReqCreateContactDto, ReqUpdateContactDto}, entities::{contact, user_contact}, req_repository::{contact_repository::{ContactRepositoryBase, ContactRepositoryUtility}, contact_type_repository::ContactTypeRepositoryBase}}, soc::soc_repository::RepositoryError};
+use crate::{domain::{dto::contact_dto::{ReqCreateContactDto, ReqUpdateContactDto}, entities::{contact, user_contact}, req_repository::contact_repository::{ContactRepositoryBase, ContactRepositoryUtility}}, soc::soc_repository::RepositoryError};
 
 
 

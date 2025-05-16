@@ -8,24 +8,32 @@ use crate::{application::usecase_req_impl::user_usecase::UserUsecase, domain::{d
 
 
 
-
 pub struct UserUseCase<T>
-where 
-    T: UserRepositoryBase + UserRepositoryUtility + GenderRepository + RoleManagementRepository + AuthRepository + Send + Sync,
+where
+    T: UserRepositoryBase
+        + UserRepositoryUtility
+        + GenderRepository
+        + RoleManagementRepository
+        + AuthRepository
+        + Send
+        + Sync,
 {
-    user_repository: Arc<T>
+    user_repository: Arc<T>,
 }
 
-
 impl<T> UserUseCase<T>
-where 
-    T: GenderRepository + UserRepositoryBase + UserRepositoryUtility + RoleManagementRepository + AuthRepository + Send + Sync,
+where
+    T: UserRepositoryBase
+        + UserRepositoryUtility
+        + GenderRepository
+        + RoleManagementRepository
+        + AuthRepository
+        + Send
+        + Sync,
 {
     pub fn new(user_repository: Arc<T>) -> Self {
         Self { user_repository }
     }
-
-
 }
 
 #[async_trait::async_trait]

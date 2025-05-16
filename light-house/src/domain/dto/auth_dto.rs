@@ -5,7 +5,7 @@ use validator::Validate;
 
 
 
-#[derive(Deserialize, ToSchema, Validate, Clone)]
+#[derive(Deserialize, Serialize, ToSchema, Validate, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct ReqSignInDto{
 

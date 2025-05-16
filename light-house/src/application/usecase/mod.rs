@@ -5,3 +5,4 @@ pub mod contact_type_usecase;
 pub mod contact_usecase;
 pub mod expense_type_usecase;
 pub mod expense_usecase;
+pub mod transaction;

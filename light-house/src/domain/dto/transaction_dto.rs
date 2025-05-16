@@ -130,11 +130,11 @@ pub struct ReqUpdateTransferDto {
 #[serde(crate = "rocket::serde")]
 pub struct ResEntryTransferDto{
     pub id: String,
-    pub transaction_type_id: String,
+    pub transaction_type_name: String,
     pub amount: f64,
-    pub aseet_id: String,
-    pub destination_asset_id: String,
-    pub contact_id: String,
+    pub asset_name: String,
+    pub destination_asset_name: String,
+    pub contact_name: String,
     pub note: String,
     pub created_at: String,
     pub updated_at: String,

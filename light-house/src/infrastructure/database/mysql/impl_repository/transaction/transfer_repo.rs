@@ -7,7 +7,7 @@ use rust_decimal::prelude::*;
 use uuid::Uuid;
 
 use crate::{
-    domain::{dto::transaction_dto::{ReqCreateTransferDto, ReqUpdateTransferDto}, entities::transaction, req_repository::{balance_repository::BalanceRepositoryBase, transaction_repository::TranferRepositoryUtility}},
+    domain::{dto::transaction_dto::{ReqCreateTransferDto, ReqUpdateTransferDto}, entities::transaction, req_repository::{balance_repository::BalanceRepositoryBase, transaction_repository::TransferRepositoryUtility}},
     infrastructure::database::mysql::impl_repository::balance_repo::BalanceRepositoryImpl, soc::soc_repository::RepositoryError
 };
 
@@ -27,7 +27,7 @@ impl TransferRepositoryImpl {
 }
 
 #[async_trait::async_trait]
-impl TranferRepositoryUtility for TransferRepositoryImpl {
+impl TransferRepositoryUtility for TransferRepositoryImpl {
     async fn create_transfer(
         &self,
         user_id: Uuid,

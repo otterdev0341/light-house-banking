@@ -2,43 +2,43 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 use rust_decimal::prelude::ToPrimitive;
-use crate::{application::usecase_req_impl::current_sheet_usecase::CurrentSheetUsecase, domain::{dto::current_sheet_dto::{ResCurrentSheetDto, ResListCurrentSheetDto}, req_repository::{asset_repository::{AssetRepositoryBase, AssetRepositoryUtility}, asset_type_repository::{AssetTypeRepositoryBase, AssetTypeRepositoryUtility}, balance_repository::{BalanceRepositoryBase, BalanceRepositoryUtill}}}, soc::{soc_repository::RepositoryError, soc_usecase::UsecaseError}};
+use crate::{application::usecase_req_impl::current_sheet_usecase::CurrentSheetUsecase, domain::{dto::current_sheet_dto::{ResCurrentSheetDto, ResListCurrentSheetDto}, req_repository::{asset_repository::{AssetRepositoryBase, AssetRepositoryUtility}, balance_repository::{BalanceRepositoryBase, BalanceRepositoryUtill}}}, soc::{soc_repository::RepositoryError, soc_usecase::UsecaseError}};
 
 
 
 
 
 
-pub struct CurrentUseCase<T, A, AT>
+pub struct CurrentUseCase<T, A>
 where 
     T: BalanceRepositoryBase + BalanceRepositoryUtill + Send + Sync,
     A: AssetRepositoryBase + AssetRepositoryUtility + Send + Sync,
-    AT: AssetTypeRepositoryBase + AssetTypeRepositoryUtility + Send + Sync,
+    
 {
     balance_repo: Arc<T>,
     asset_repo: Arc<A>,
-    asset_type_repo: Arc<AT>,
+    
 }
 
 
-impl<T, A, AT> CurrentUseCase<T, A, AT>
+impl<T, A> CurrentUseCase<T, A>
 where 
     T: BalanceRepositoryBase + BalanceRepositoryUtill + Send + Sync,
     A: AssetRepositoryBase + AssetRepositoryUtility + Send + Sync,
-    AT: AssetTypeRepositoryBase + AssetTypeRepositoryUtility + Send + Sync,
+    
 {
-    pub fn new(balance_repo: Arc<T>, asset_repo: Arc<A>, asset_type_repo: Arc<AT>) -> Self {
-        Self { balance_repo, asset_repo, asset_type_repo }
+    pub fn new(balance_repo: Arc<T>, asset_repo: Arc<A>) -> Self {
+        Self { balance_repo, asset_repo }
     }
 }
 
 
 #[async_trait::async_trait]
-impl<T,A, AT > CurrentSheetUsecase for CurrentUseCase<T, A, AT>
+impl<T,A> CurrentSheetUsecase for CurrentUseCase<T, A>
 where 
     T: BalanceRepositoryBase + BalanceRepositoryUtill + Send + Sync,
     A: AssetRepositoryBase + AssetRepositoryUtility + Send + Sync,
-    AT: AssetTypeRepositoryBase + AssetTypeRepositoryUtility + Send + Sync,
+    
 {
     async fn get_current_sheet_by_id(&self, user_id: Uuid, current_sheet_id: Uuid) -> Result<Option<ResCurrentSheetDto>, UsecaseError> {
          // Step 1: Fetch the current sheet record by user_id and current_sheet_id from the balance repository

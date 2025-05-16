@@ -27,9 +27,9 @@ pub struct ReqUpdateExpenseDto {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(crate = "rocket::serde")]
 pub struct ResEntryExpenseDto {
-    pub id: i32,
+    pub id: String,
     pub description: String,
-    pub expense_type_id: i32,
+    pub expense_type_name: String,
     pub created_at: String,
     pub updated_at: String,
 }

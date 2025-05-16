@@ -1,0 +1,138 @@
+use std::{ops::Deref, sync::Arc};
+
+use uuid::Uuid;
+
+use crate::{domain::{dto::{asset_dto::{ReqCreateAssetDto, ReqUpdateAssetDto}, contact_dto::{ReqCreateContactDto, ReqUpdateContactDto}, transaction_dto::{ReqCreatePaymentDto, ReqUpdatePaymentDto}}, entities::{asset, contact, transaction}, req_repository::{asset_repository::{AssetRepositoryBase, AssetRepositoryUtility}, contact_repository::{ContactRepositoryBase, ContactRepositoryUtility}, transaction_repository::RecordPaymentRepositoryUtility}}, infrastructure::database::mysql::impl_repository::{asset_repo::AssetRepositoryImpl, contact_repo::ContactRepositoryImpl, transaction::payment_repo::PaymentRepositoryImpl}, soc::soc_repository::RepositoryError};
+
+
+
+
+pub struct PaymentRepositoryComposite {
+    pub payment_repository: Arc<PaymentRepositoryImpl>,
+    pub asset_repository: Arc<AssetRepositoryImpl>,
+    pub contact_repository: Arc<ContactRepositoryImpl>,
+}
+impl PaymentRepositoryComposite {
+    pub fn payment_repository(&self) -> &Arc<PaymentRepositoryImpl> {
+        &self.payment_repository
+    }
+
+    pub fn asset_repository(&self) -> &Arc<AssetRepositoryImpl> {
+        &self.asset_repository
+    }
+    
+    pub fn contact_repository(&self) -> &Arc<ContactRepositoryImpl> {
+        &self.contact_repository
+    }
+}
+impl Deref for PaymentRepositoryComposite {
+    type Target = PaymentRepositoryImpl;
+
+    fn deref(&self) -> &Self::Target {
+        &self.payment_repository
+    }
+}
+
+
+#[async_trait::async_trait]
+impl RecordPaymentRepositoryUtility for PaymentRepositoryComposite{
+    async fn create_payment_record(&self, user_id: Uuid, payment_record_dto: ReqCreatePaymentDto) -> Result<transaction::Model, RepositoryError>
+    {
+        self.payment_repository.create_payment_record(user_id, payment_record_dto).await
+    }
+    async fn update_payment_record(&self, user_id: Uuid, transaction_id: Uuid, payment_record_dto: ReqUpdatePaymentDto) -> Result<transaction::Model, RepositoryError>
+    {
+        self.payment_repository.update_payment_record(user_id, transaction_id, payment_record_dto).await
+    }
+    async fn delete_payment_record(&self, user_id: Uuid, transaction_id: Uuid) -> Result<(), RepositoryError>
+    {
+        self.payment_repository.delete_payment_record(user_id, transaction_id).await
+    }
+    async fn get_payment_record_by_id(&self, user_id: Uuid, transaction_id: Uuid) -> Result<Option<transaction::Model>, RepositoryError>
+    {
+        self.payment_repository.get_payment_record_by_id(user_id, transaction_id).await
+    }
+    async fn get_all_payment_record_by_user(&self, user_id: Uuid) -> Result<Vec<transaction::Model>, RepositoryError>
+    {
+        self.payment_repository.get_all_payment_record_by_user(user_id).await
+    }
+}   
+
+
+#[async_trait::async_trait]
+impl AssetRepositoryBase for PaymentRepositoryComposite {
+    async fn create(&self, user_id: Uuid, dto: ReqCreateAssetDto) -> Result<asset::Model, RepositoryError>
+    {
+        self.asset_repository.create(user_id, dto).await
+    }
+    async fn find_by_id(&self, user_id: Uuid, asset_id: Uuid) -> Result<Option<asset::Model>, RepositoryError>
+    {
+        self.asset_repository.find_by_id(user_id, asset_id).await
+    }
+    async fn find_all(&self) -> Result<Vec<asset::Model>, RepositoryError>
+    {
+        self.asset_repository.find_all().await
+    }
+    async fn update(&self, dto: ReqUpdateAssetDto, user_id: Uuid, asset_id: Uuid) -> Result<asset::Model, RepositoryError>
+    {
+        self.asset_repository.update(dto, user_id, asset_id).await
+    }
+    async fn delete(&self,user_id: Uuid, asset_id : Uuid) -> Result<(), RepositoryError>
+    {
+        self.asset_repository.delete(user_id, asset_id).await
+    }
+}
+
+
+#[async_trait::async_trait]
+impl AssetRepositoryUtility for PaymentRepositoryComposite {
+    async fn find_all_by_user_id(&self, user_id: Uuid) -> Result<Vec<asset::Model>, RepositoryError>
+    {
+        self.asset_repository.find_all_by_user_id(user_id).await
+    }
+}
+
+
+#[async_trait::async_trait]
+impl ContactRepositoryBase for PaymentRepositoryComposite{
+    async fn create(&self, user_id: Uuid, dto: ReqCreateContactDto) -> Result<contact::Model, RepositoryError>
+    {
+        self.contact_repository.create(user_id, dto).await
+    }
+    async fn find_by_id(&self, contact_id: Uuid) -> Result<Option<contact::Model>, RepositoryError>
+    {
+        self.contact_repository.find_by_id(contact_id).await
+    }
+    async fn find_all(&self) -> Result<Vec<contact::Model>, RepositoryError>
+    {
+        self.contact_repository.find_all().await
+    }
+    async fn update(&self, dto: ReqUpdateContactDto, user_id: Uuid, contact_id: Uuid) -> Result<contact::Model, RepositoryError>
+    {
+        self.contact_repository.update(dto, user_id, contact_id).await
+    }
+    async fn delete(&self,user_id: Uuid, contact_id : Uuid) -> Result<(), RepositoryError>
+    {
+        self.contact_repository.delete(user_id, contact_id).await
+    }
+}
+
+#[async_trait::async_trait]
+impl ContactRepositoryUtility for PaymentRepositoryComposite{
+    async fn find_all_by_user_id(&self, user_id: Uuid) -> Result<Vec<contact::Model>, RepositoryError>
+    {
+        self.contact_repository.find_all_by_user_id(user_id).await
+    }
+    async fn find_by_user_id_and_contact_id(&self, user_id: Uuid, contact_id: Uuid) -> Result<Option<contact::Model>, RepositoryError>
+    {
+        self.contact_repository.find_by_user_id_and_contact_id(user_id, contact_id).await
+    }
+    async fn find_by_user_id_and_contact_type_id(&self, user_id: uuid::Uuid, contact_id: Uuid) -> Result<Option<contact::Model>, RepositoryError>
+    {
+        self.contact_repository.find_by_user_id_and_contact_type_id(user_id, contact_id).await
+    }
+    async fn is_in_use_in_transaction(&self, user_id: Uuid, contact_id: Uuid) -> Result<bool, RepositoryError>
+    {
+        self.contact_repository.is_in_use_in_transaction(user_id, contact_id).await
+    }
+}

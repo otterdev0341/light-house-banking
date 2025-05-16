@@ -10,7 +10,7 @@ use crate::{domain::{dto::expense_type_dto::{ReqCreateExpenseTypeDto, ReqUpdateE
 
 
 pub struct ExpenseTypeRepositoryImpl{
-    db_pool: Arc<DatabaseConnection>
+    pub db_pool: Arc<DatabaseConnection>
 }
 
 impl ExpenseTypeRepositoryImpl {

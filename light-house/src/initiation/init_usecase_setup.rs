@@ -41,7 +41,7 @@ pub fn init_usecase_setup(db_connection: Arc<DatabaseConnection>) -> AdHoc {
             db_pool: Arc::clone(&db_connection),
         };
       
-        let asset_type_usecase = Arc::new(AssetTypeUseCase::new(Arc::new(asset_type_repository)));
+        let asset_type_usecase: Arc<AssetTypeUseCase<AssetTypeRepositoryImpl>> = Arc::new(AssetTypeUseCase::new(Arc::new(asset_type_repository)));
         
         // asset repository && asset usecase
         let asset_repository = AssetRepositoryImpl{

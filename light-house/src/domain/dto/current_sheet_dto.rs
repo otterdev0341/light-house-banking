@@ -9,8 +9,8 @@ use utoipa::ToSchema;
 #[serde(crate = "rocket::serde")]
 pub struct ResCurrentSheetDto {
     pub id: String,
-    pub asset_id: String,
-    pub balance: f32,
+    pub asset_name: String,
+    pub balance: f64,
     pub last_transaction_id: Option<String>,
     pub updated_at: String,
 }

@@ -186,4 +186,17 @@ impl BalanceRepositoryUtill for BalanceRepositoryImpl {
 
         Ok(current_sheets)
     }
+
+    async fn get_all_current_sheets_by_asset_id(&self, user_id: Uuid, asset_id: Uuid) -> Result<Vec<current_sheet::Model>, RepositoryError>
+    {
+        // Query the database to retrieve all current sheets for the given asset ID and user ID
+        let current_sheets = current_sheet::Entity::find()
+            .filter(current_sheet::Column::UserId.eq(user_id.as_bytes().to_vec()))
+            .filter(current_sheet::Column::AssetId.eq(asset_id.as_bytes().to_vec()))
+            .all(self.db_pool.as_ref())
+            .await
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+
+        Ok(current_sheets)
+    }
 }

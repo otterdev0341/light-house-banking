@@ -20,4 +20,5 @@ pub trait BalanceRepositoryBase {
 #[mockall::automock]
 pub trait BalanceRepositoryUtill {
     async fn get_all_current_sheets_by_asset_type_id(&self, user_id: Uuid, asset_type_id: Uuid) -> Result<Vec<current_sheet::Model>, RepositoryError>;
+    async fn get_all_current_sheets_by_asset_id(&self, user_id: Uuid, asset_id: Uuid) -> Result<Vec<current_sheet::Model>, RepositoryError>;
 }

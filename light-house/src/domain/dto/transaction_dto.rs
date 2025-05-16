@@ -81,10 +81,10 @@ pub struct ReqUpdateIncomeDto {
 #[serde(crate = "rocket::serde")]
 pub struct ResEntryIncomeDto{
     pub id: String,
-    pub transaction_type_id: String,
+    pub transaction_type_name: String,
     pub amount: f64,
-    pub asset_id: String,
-    pub contact_id: String,
+    pub asset_name: String,
+    pub contact_name: String,
     pub note: String,
     pub created_at: String,
     pub updated_at: String,

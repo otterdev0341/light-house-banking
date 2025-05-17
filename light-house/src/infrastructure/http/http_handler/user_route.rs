@@ -3,7 +3,7 @@ use std::sync::Arc;
 use rocket::{http::Status, post, put, routes, serde::json::Json, Route, State};
 use validator::Validate;
 
-use crate::{application::{usecase::{user_usecase::UserUseCase, wrapper::user_wrapper::UserRepositoryComposite}, usecase_req_impl::user_usecase::UserUsecase}, domain::dto::auth_dto::{ReqSignInDto, ReqSignUpDto, ReqUpdateUserDto, ResMeDto, ResSignInDto}, infrastructure::http::{faring::authentication::AuthenticatedUser, response::otter_response::{ErrorResponse, OtterResponse, SuccessResponse}}};
+use crate::{application::{usecase::{user_usecase::UserUseCase, wrapper::user_wrapper::UserRepositoryComposite}, usecase_req_impl::user_usecase::UserUsecase}, domain::dto::auth_dto::{ReqSignInDto, ReqSignUpDto, ReqUpdateUserDto, ResMeDto, ResSignInDto}, infrastructure::http::{faring::{authentication::AuthenticatedUser, cors::options}, response::otter_response::{ErrorResponse, OtterResponse, SuccessResponse}}};
 
 
 
@@ -13,7 +13,8 @@ pub fn user_routes() -> Vec<Route> {
         sign_in,
         sign_up,
         update_user,
-        me
+        me,
+        options
         // get_users,
         // create_user,
         // update_user,

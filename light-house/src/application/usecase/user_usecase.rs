@@ -75,12 +75,13 @@ where
         };
 
         // Step 4: Populate the response object
-        res_me.id = match String::from_utf8(created_user.id) {
-            Ok(id) => id,
+        res_me.id = match Uuid::from_slice(&created_user.id) {
+            Ok(id) => id.to_string(),
             Err(err) => return Err(UsecaseError::Unexpected(err.to_string())),
         };
         res_me.email = created_user.email;
         res_me.first_name = created_user.first_name;
+        res_me.username = created_user.username;
         res_me.last_name = created_user.last_name;
         res_me.gender = gender.map(|g| g.name).unwrap_or_default();
         res_me.user_role = role.map(|r| r.name).unwrap_or_default();

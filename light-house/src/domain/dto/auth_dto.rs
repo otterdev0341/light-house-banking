@@ -43,7 +43,7 @@ pub struct ReqSignUpDto{
     #[validate(length(min = 1, message = "Last name must be at least 1 characters"))]
     pub last_name: String,
 
-    #[validate(length(min = 1, message = "The Gender must not be empty"))]
+    #[validate(length(min = 3, message = "The Gender must not be empty"))]
     pub gender: String,
 }
 

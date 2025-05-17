@@ -5,7 +5,7 @@ use rand::{distr::Alphanumeric, Rng};
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect};
 use uuid::Uuid;
 
-use crate::{domain::{dto::auth_dto::{ReqSignUpDto, ReqUpdateUserDto}, entities::user, req_repository::user_repository::{UserRepositoryBase, UserRepositoryMcp, UserRepositoryUtility}}, soc::soc_repository::RepositoryError};
+use crate::{domain::{dto::auth_dto::{ReqSignUpDto, ReqUpdateUserDto}, entities::{gender, user, user_role}, req_repository::user_repository::{UserRepositoryBase, UserRepositoryMcp, UserRepositoryUtility}}, soc::soc_repository::RepositoryError};
 
 
 
@@ -29,28 +29,76 @@ impl UserRepositoryImpl {
 impl UserRepositoryBase for UserRepositoryImpl {
 
 
-    async fn create(&self, dto: ReqSignUpDto) -> Result<user::Model, RepositoryError>
-    {
+    async fn create(&self, dto: ReqSignUpDto) -> Result<user::Model, RepositoryError> {
+        log::debug!("Starting create function for username: {}", dto.username);
+
         // Hash the password
         let hashed_password = hash(&dto.password, DEFAULT_COST)
             .map_err(|_| RepositoryError::InvalidInput("Failed to hash password".to_string()))?;
+        log::debug!("Password hashed successfully");
+
+        // Query the gender table
+        let gender = gender::Entity::find()
+            .filter(gender::Column::Name.eq(dto.gender.clone()))
+            .one(self.db_pool.as_ref())
+            .await
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+        log::debug!("Gender query completed");
+
+        let gender_id = match gender {
+            Some(gender) => gender.id,
+            None => {
+                log::error!("Gender '{}' not found", dto.gender);
+                return Err(RepositoryError::InvalidInput(format!(
+                    "Gender '{}' not found",
+                    dto.gender
+                )));
+            }
+        };
+
+        // Query the user_role table
+        let role = user_role::Entity::find()
+            .filter(user_role::Column::Name.eq("user"))
+            .one(self.db_pool.as_ref())
+            .await
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+        log::debug!("Role query completed");
+
+        let role_id = match role {
+            Some(role) => role.id,
+            None => {
+                log::error!("Role 'user' not found");
+                return Err(RepositoryError::InvalidInput(
+                    "Role 'user' not found".to_string(),
+                ));
+            }
+        };
+
+        let mcp_token = Uuid::now_v7().to_string();
+        log::debug!("Generated UUID v7 mcp_token: {}", mcp_token);
+
 
         // Create the ActiveModel for the user
         let new_user = user::ActiveModel {
-            id: Set(Uuid::new_v4().into()), // Generate a new UUID for the user
+            id: Set(Uuid::new_v4().into()),
             username: Set(dto.username),
             email: Set(dto.email),
-            password: Set(hashed_password), // Use the hashed password
+            password: Set(hashed_password),
             first_name: Set(dto.first_name),
             last_name: Set(dto.last_name),
+            gender_id: Set(gender_id.into()),
+            user_role_id: Set(role_id.into()),
+            mcp_token: Set(mcp_token),
             ..Default::default()
         };
+        log::debug!("New user ActiveModel created");
 
         // Insert the user into the database
         let inserted_user = new_user
             .insert(self.db_pool.as_ref())
             .await
             .map_err(|err| {
+                log::error!("Error inserting user: {}", err);
                 if let sea_orm::DbErr::Exec(exec_err) = &err {
                     if exec_err.to_string().contains("UNIQUE") {
                         return RepositoryError::UniqueConstraintViolation(
@@ -60,6 +108,7 @@ impl UserRepositoryBase for UserRepositoryImpl {
                 }
                 RepositoryError::DatabaseError(err.to_string())
             })?;
+        log::debug!("User inserted successfully");
 
         Ok(inserted_user)
     }

@@ -100,11 +100,11 @@ impl RoleManagementRepository for UserRepositoryComposite {
 impl GenderRepository for UserRepositoryComposite {
     async fn get_gender_by_id(&self, gender_id: Uuid) -> Result<Option<gender::Model>, RepositoryError>
     {   
-        self.get_gender_by_id(gender_id).await
+        self.gender_repository.get_gender_by_id(gender_id).await
     }
     async fn get_all_gender(&self) -> Result<Vec<gender::Model>, RepositoryError>
     {
-        self.get_all_gender().await
+        self.gender_repository.get_all_gender().await
     }
 }
 

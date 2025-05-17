@@ -95,8 +95,8 @@ where
     {
         let result = self.user_repository.sign_in(user_dto).await;
         match result {
-            Ok(res) => Ok(res.into_inner()),
-            Err(err) => Err(UsecaseError::Unexpected(err)),
+            Ok(res) => Ok(res),
+            Err(err) => Err(UsecaseError::Unexpected(err.to_string())),
         }
     }
 

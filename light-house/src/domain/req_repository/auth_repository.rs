@@ -1,6 +1,4 @@
-use rocket::serde::json::Json;
-
-use crate::domain::dto::auth_dto::{ReqSignInDto, ResSignInDto};
+use crate::{domain::dto::auth_dto::{ReqSignInDto, ResSignInDto}, soc::soc_repository::RepositoryError};
 
 
 
@@ -9,6 +7,6 @@ use crate::domain::dto::auth_dto::{ReqSignInDto, ResSignInDto};
 #[async_trait::async_trait]
 pub trait AuthRepository: Send + Sync {
     
-    async fn sign_in(&self, sign_in_dto: ReqSignInDto) -> Result<Json<ResSignInDto>, String>;
+    async fn sign_in(&self, sign_in_dto: ReqSignInDto) -> Result<ResSignInDto, RepositoryError>;
 
 }

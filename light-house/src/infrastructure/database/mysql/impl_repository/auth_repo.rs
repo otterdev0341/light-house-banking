@@ -1,12 +1,12 @@
 use std::{sync::Arc, time::SystemTime};
 
-use jsonwebtoken::crypto::verify;
-use rocket::http::Status;
+
+use bcrypt::verify as bcrypt_verify;
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 
 use uuid::Uuid;
 
-use crate::{configuration::jwt_config::JwtSecret, domain::{dto::auth_dto::{Claims, ReqSignInDto, ResMeDto, ResSignInDto}, entities::{gender, user, user_role}, req_repository::{auth_repository::AuthRepository}}, infrastructure::http::response::otter_response::ErrorResponse};
+use crate::{configuration::jwt_config::JwtSecret, domain::{dto::auth_dto::{Claims, ReqSignInDto, ResMeDto, ResSignInDto}, entities::{gender, user, user_role}, req_repository::auth_repository::AuthRepository}, soc::soc_repository::RepositoryError};
 
 
 
@@ -30,7 +30,7 @@ impl AuthRepositoryImpl {
 impl AuthRepository for AuthRepositoryImpl {
     
     async fn sign_in(&self, sign_in_dto: ReqSignInDto
-    ) -> Result<rocket::serde::json::Json<ResSignInDto> , String>
+    ) -> Result<ResSignInDto, RepositoryError>
     {
         // create connection
         let conn = Arc::clone(&self.db_pool);
@@ -40,40 +40,33 @@ impl AuthRepository for AuthRepositoryImpl {
             .filter(user::Column::Email.eq(sign_in_dto.email))
             .one(conn.as_ref())
             .await
-            .map_err(|_| "Error while finding user".to_string())?;
+            .map_err(|err| RepositoryError::from(err))?;
         // check is user exist
         let user = match user {
             Some(user) => user,
-            None => return Err("User not found".to_string()),
+            None => return Err(RepositoryError::NotFound("User not found".to_string())),
         };
         // check is password correct
-        let decoding_key = jsonwebtoken::DecodingKey::from_secret(jwt_config.jwt_secret.as_bytes());
-        let is_password_correct = verify(
-            &user.password,
-            sign_in_dto.password.as_bytes(),
-            &decoding_key,
-            jsonwebtoken::Algorithm::HS256,
-        ).map_err(|_| "Error while verifying password".to_string())?;
+        let is_password_correct = bcrypt_verify(&sign_in_dto.password, &user.password)
+           .map_err(|_| RepositoryError::InvalidInput("Error while verifying password".to_string()))?;
 
-        // return error if password is incorrect
         if !is_password_correct {
-            return Err("Password is incorrect".to_string());
+            return Err(RepositoryError::InvalidInput("Password is incorrect".to_string()));
         }
 
 
         // generate claim 
-        let claim = Claims{
-            sub: Uuid::from_slice(&user.id).map_err(|_| "Invalid UUID format".to_string())?,
+        let claim = Claims {
+            sub: Uuid::from_slice(&user.id)
+                .map_err(|_| RepositoryError::InvalidInput("Invalid UUID format".to_string()))?,
             role: "user".to_string(),
             exp: SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
-                .map_err(|e| format!(
+                .map_err(|e| RepositoryError::InvalidInput(format!(
                     "Time error: {:?}",
-                    ErrorResponse(Status::InternalServerError, format!("{:?}", e))
-                ))?
-                // Ensure the error type matches the function's declared error type (String)
-                .as_secs() + 4 * 60 * 60
-                
+                    e
+                )))?
+                .as_secs() + 4 * 60 * 60,
         };
 
         // generate token
@@ -81,12 +74,12 @@ impl AuthRepository for AuthRepositoryImpl {
             &jsonwebtoken::Header::default(),
             &claim,
             &jsonwebtoken::EncodingKey::from_secret(jwt_config.jwt_secret.as_bytes()),
-        ).map_err(|_| "Error while generating token".to_string())?;
+        ).map_err(|_| RepositoryError::InvalidInput("Error while generating token".to_string()))?;
         // return token
         let res = ResSignInDto {
             token
         };
-        Ok(rocket::serde::json::Json(res))
+        Ok(res)
 
     }
 

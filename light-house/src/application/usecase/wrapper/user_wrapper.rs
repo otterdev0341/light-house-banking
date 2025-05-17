@@ -1,6 +1,4 @@
 use std::{ops::Deref, sync::Arc};
-
-use rocket::serde::json::Json;
 use uuid::Uuid;
 
 use crate::{domain::{dto::auth_dto::{ReqSignInDto, ReqSignUpDto, ReqUpdateUserDto, ResSignInDto}, entities::{gender, user, user_role}, req_repository::{auth_repository::AuthRepository, gender_repository::GenderRepository, user_repository::{UserRepositoryBase, UserRepositoryUtility}, user_role_repository::RoleManagementRepository}}, infrastructure::database::mysql::impl_repository::{
@@ -67,7 +65,7 @@ impl UserRepositoryBase for UserRepositoryComposite {
 
 #[async_trait::async_trait]
 impl AuthRepository for UserRepositoryComposite {
-    async fn sign_in(&self, sign_in_dto: ReqSignInDto) -> Result<Json<ResSignInDto>, String>{
+    async fn sign_in(&self, sign_in_dto: ReqSignInDto) -> Result<ResSignInDto, RepositoryError>{
         self.auth_repository.sign_in(sign_in_dto).await
     }
     

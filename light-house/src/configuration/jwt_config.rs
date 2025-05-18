@@ -4,8 +4,7 @@ pub struct JwtSecret {
 
 impl Default for JwtSecret {
     fn default() -> Self {
-        Self {
-            jwt_secret: std::env::var("JWT_SECRET").unwrap_or("meowmeow".to_string())
-        }
+        let jwt_secret = std::env::var("JWT_SECRET").expect("JWT_SECRET environment variable is not set");
+        Self { jwt_secret }
     }
 }

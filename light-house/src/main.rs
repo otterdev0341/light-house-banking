@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use light_house::{configuration::mysql_config::DatabaseConfig, domain::migration::Migrator, infrastructure::{database::mysql::mysql_connection, http::faring::cors::CORS}, initiation::{init_open_api_setup::init_open_api_setup, init_usecase_setup::init_usecase_setup}};
+use light_house::{configuration::{jwt_config, mysql_config::DatabaseConfig}, domain::migration::Migrator, infrastructure::{database::mysql::mysql_connection, http::faring::cors::CORS}, initiation::{init_open_api_setup::init_open_api_setup, init_usecase_setup::init_usecase_setup}};
 use rocket::{get, routes};
 use sea_orm_migration::MigratorTrait;
 use light_house::initiation::init_handler_setup::init_handler_setup;
@@ -37,6 +37,7 @@ async fn main() -> Result<(), rocket::Error>  {
     match rocket::build()
         .attach(CORS)
         .attach(init_usecase_setup(Arc::clone(&db_arc)))
+        .manage(jwt_config::JwtSecret::default())
         .mount("/", routes![index])
         .attach(init_handler_setup())
         .mount("/",

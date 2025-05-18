@@ -69,9 +69,12 @@ impl AuthRepository for AuthRepositoryImpl {
                 .as_secs() + 4 * 60 * 60,
         };
 
-        // generate token
+        // Generate token
         let token = jsonwebtoken::encode(
-            &jsonwebtoken::Header::default(),
+            &jsonwebtoken::Header {
+                alg: jsonwebtoken::Algorithm::HS512, // Use HS512 explicitly
+                ..jsonwebtoken::Header::default()
+            },
             &claim,
             &jsonwebtoken::EncodingKey::from_secret(jwt_config.jwt_secret.as_bytes()),
         ).map_err(|_| RepositoryError::InvalidInput("Error while generating token".to_string()))?;

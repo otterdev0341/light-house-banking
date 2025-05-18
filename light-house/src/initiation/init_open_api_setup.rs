@@ -1,6 +1,6 @@
 use utoipa::OpenApi;
 
-use crate::{configuration::api_doc_config::ApiConfig, swagger_ui::{auth_api::AuthApi, user_api::UserApi}};
+use crate::{configuration::api_doc_config::ApiConfig, swagger_ui::{asset_type_api::AssetTypeApi, auth_api::AuthApi, user_api::UserApi}};
 
 
 
@@ -10,6 +10,7 @@ pub fn init_open_api_setup() -> utoipa::openapi::OpenApi {
         ApiConfig::openapi(),
         AuthApi::openapi(),
         UserApi::openapi(),
+        AssetTypeApi::openapi(),
     
     ];
 

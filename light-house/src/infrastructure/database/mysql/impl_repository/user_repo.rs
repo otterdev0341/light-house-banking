@@ -157,35 +157,30 @@ impl UserRepositoryBase for UserRepositoryImpl {
         // Convert the found user into an ActiveModel for updating
         let mut active_model: user::ActiveModel = user.into();
 
+        // Helper function to check if a field should be updated
+        fn should_update(field: &Option<String>) -> Option<String> {
+            field.as_ref().filter(|value| !value.is_empty()).cloned()
+        }
+
         // Update fields if they are provided in the DTO and are not empty strings
-        if let Some(username) = dto.username {
-            if !username.is_empty() {
-                active_model.username = Set(username);
-            }
+        if let Some(username) = should_update(&dto.username) {
+            active_model.username = Set(username);
         }
-        if let Some(email) = dto.email {
-            if !email.is_empty() {
-                active_model.email = Set(email);
-            }
+        if let Some(email) = should_update(&dto.email) {
+            active_model.email = Set(email);
         }
-        if let Some(first_name) = dto.first_name {
-            if !first_name.is_empty() {
-                active_model.first_name = Set(first_name);
-            }
+        if let Some(first_name) = should_update(&dto.first_name) {
+            active_model.first_name = Set(first_name);
         }
-        if let Some(last_name) = dto.last_name {
-            if !last_name.is_empty() {
-                active_model.last_name = Set(last_name);
-            }
+        if let Some(last_name) = should_update(&dto.last_name) {
+            active_model.last_name = Set(last_name);
         }
-        if let Some(password) = dto.password {
-            if !password.is_empty() {
-                // Hash the password before updating
-                let hashed_password = hash(&password, DEFAULT_COST)
-                    .map_err(|_| RepositoryError::InvalidInput("Failed to hash password".to_string()))?;
-                active_model.password = Set(hashed_password);
-            }
-        }
+        if let Some(password) = should_update(&dto.password) {
+            // Hash the password before updating
+            let hashed_password = hash(&password, DEFAULT_COST)
+                .map_err(|_| RepositoryError::InvalidInput("Failed to hash password".to_string()))?;
+            active_model.password = Set(hashed_password);
+    }
 
         // Update the `updated_at` timestamp
         active_model.updated_at = Set(Some(chrono::Utc::now()));

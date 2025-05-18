@@ -135,9 +135,12 @@ where
 
         // Step 4: Populate the response object
         let res_me = ResMeDto {
-            id: match String::from_utf8(user.id) {
-                Ok(id) => id,
-                Err(err) => return Err(UsecaseError::Unexpected(err.to_string())),
+            id: match Uuid::from_slice(&user.id) {
+                Ok(uuid) => uuid.to_string(),
+                Err(_) => {
+                    log::error!("Invalid UUID format for user ID: {:?}", user.id);
+                    return Err(UsecaseError::Unexpected("Invalid UUID format".to_string()));
+                }
             },
             username: user.username,
             email: user.email,
@@ -167,8 +170,14 @@ where
 
         let gender = match self.user_repository.get_gender_by_id(gender_id).await {
             Ok(Some(gender)) => gender.name,
-            Ok(None) => String::from("Unknown"), // Default value if gender is not found
-            Err(err) => return Err(UsecaseError::from(err)),
+            Ok(None) => {
+                log::warn!("Gender not found for ID: {:?}", gender_id);
+                String::from("Unknown")
+            },
+            Err(err) => {
+                log::error!("Error while fetching gender: {:?}", err);
+                return Err(UsecaseError::from(err));
+            },
         };
 
         // Step 3: Fetch the role name using the user_role_id from the updated user
@@ -179,15 +188,24 @@ where
 
         let user_role = match self.user_repository.get_role_by_id(role_id).await {
             Ok(Some(role)) => role.name,
-            Ok(None) => String::from("Unknown"), // Default value if role is not found
-            Err(err) => return Err(UsecaseError::from(err)),
+            Ok(None) => {
+                log::warn!("User role not found for ID: {:?}", role_id);
+                String::from("Unknown")
+            },
+            Err(err) => {
+                log::error!("Error while fetching user role: {:?}", err);
+                return Err(UsecaseError::from(err));
+            },
         };
 
         // Step 4: Populate the response object
         let res_me = ResMeDto {
-            id: match String::from_utf8(updated_user.id) {
-                Ok(id) => id,
-                Err(err) => return Err(UsecaseError::Unexpected(err.to_string())),
+            id: match Uuid::from_slice(&updated_user.id) {
+                Ok(uuid) => uuid.to_string(),
+                Err(err) => {
+                    log::error!("Invalid UUID format for user ID: {:?}", updated_user.id);
+                    return Err(UsecaseError::Unexpected(err.to_string()));
+                }
             },
             username: updated_user.username,
             email: updated_user.email,

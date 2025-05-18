@@ -122,9 +122,9 @@ impl AssetTypeRepositoryBase for TransferRepositoryComposite {
     {
         self.asset_type_repository.find_all().await
     }
-    async fn update(&self, dto: ReqUpdateAssestTypeDto, user_id: Uuid, asset_type_id: Uuid) -> Result<asset_type::Model, RepositoryError>
+    async fn update(&self, user_id: Uuid, asset_type_id: Uuid ,dto: ReqUpdateAssestTypeDto  ) -> Result<asset_type::Model, RepositoryError>
     {
-        self.asset_type_repository.update(dto, user_id, asset_type_id).await
+        self.asset_type_repository.update(user_id, asset_type_id, dto).await
     }
     async fn delete(&self,user_id: Uuid, asset_type_id : Uuid) -> Result<(), RepositoryError>
     {

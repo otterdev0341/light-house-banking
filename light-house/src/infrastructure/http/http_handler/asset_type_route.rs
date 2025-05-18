@@ -4,7 +4,7 @@ use rocket::{delete, get, http::Status, post, put, routes, serde::json::Json, Ro
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::{application::{usecase::asset_type_usecase::AssetTypeUseCase, usecase_req_impl::asset_type_usecase::AssetTypeUsecase}, domain::dto::assest_type_dto::{ReqCreateAssetTypeDto, ReqUpdateAssestTypeDto, ResEntryAssetTypeDto, ResListAssestTypeDto}, infrastructure::{database::mysql::impl_repository::asset_type_repo::AssetTypeRepositoryImpl, http::{faring::authentication::AuthenticatedUser, response::otter_response::{ErrorResponse, OtterResponse, SuccessResponse}}}};
+use crate::{application::{usecase::asset_type_usecase::AssetTypeUseCase, usecase_req_impl::asset_type_usecase::AssetTypeUsecase}, domain::dto::assest_type_dto::{ReqCreateAssetTypeDto, ReqUpdateAssestTypeDto, ResEntryAssetTypeDto, ResListAssestTypeDto}, infrastructure::{database::mysql::impl_repository::asset_type_repo::AssetTypeRepositoryImpl, http::{faring::{authentication::AuthenticatedUser, cors::options}, response::otter_response::{ErrorResponse, OtterResponse, SuccessResponse}}}};
 
 
 
@@ -16,10 +16,7 @@ pub fn asset_type_routes() -> Vec<Route> {
         view_all_asset_types,
         delete_asset_type_by_id,
         update_asset_type,
-        // get_users,
-        // create_user,
-        // update_user,
-        // delete_user
+        
     ]
 }
 
@@ -54,6 +51,9 @@ pub async fn view_asset_type_by_id(
     asset_type_usecase: &State<Arc<AssetTypeUseCase<AssetTypeRepositoryImpl>>>,
 ) -> OtterResponse<ResEntryAssetTypeDto>
 {
+    if asset_type_id.is_nil() {
+        return Err(ErrorResponse(Status::BadRequest, "Invalid asset type ID".to_string()));
+    }
     match asset_type_usecase.get_asset_type(user.id, asset_type_id).await {
         Ok(res) => {
             match res {

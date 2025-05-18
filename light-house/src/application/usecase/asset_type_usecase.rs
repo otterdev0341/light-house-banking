@@ -42,9 +42,9 @@ where
         match result {
             Ok(asset_type) => {
                 // Step 3: Map the result to ResEntryAssetTypeDto
-                let id = match String::from_utf8(asset_type.id) {
-                    Ok(id) => id,
-                    Err(err) => return Err(UsecaseError::InvalidData(err.to_string())),
+                let id = match Uuid::from_slice(&asset_type.id) {
+                    Ok(uuid) => uuid.to_string(),
+                    Err(err) => return Err(UsecaseError::InvalidData(format!("Invalid UUID format: {}", err))),
                 };
 
                 let created_at = match asset_type.created_at {
@@ -90,9 +90,9 @@ where
         match result {
             Ok(Some(asset_type)) => {
                 // Step 3: Map the result to ResEntryAssetTypeDto
-                let id = match String::from_utf8(asset_type.id) {
-                    Ok(id) => id,
-                    Err(err) => return Err(UsecaseError::InvalidData(err.to_string())),
+                let id = match Uuid::from_slice(&asset_type.id) {
+                    Ok(uuid) => uuid.to_string(),
+                    Err(err) => return Err(UsecaseError::InvalidData(format!("Invalid UUID format: {}", err))),
                 };
 
                 let created_at = match asset_type.created_at {
@@ -137,18 +137,17 @@ where
         // Step 1: Call the repository to update the asset type
         let result = self
             .asset_type_repository
-            .update(asset_type_dto, asset_type_id, user_id )
+            .update(user_id, asset_type_id, asset_type_dto)
             .await;
 
         // Step 2: Check if the result is Ok or Err
         match result {
             Ok(updated_asset_type) => {
                 // Step 3: Map the result to ResEntryAssetTypeDto
-                let id = match String::from_utf8(updated_asset_type.id) {
-                    Ok(id) => id,
-                    Err(err) => return Err(UsecaseError::InvalidData(err.to_string())),
+                let id = match Uuid::from_slice(&updated_asset_type.id) {
+                    Ok(uuid) => uuid.to_string(),
+                    Err(err) => return Err(UsecaseError::InvalidData(format!("Invalid UUID format: {}", err))),
                 };
-
                 let created_at = match updated_asset_type.created_at {
                     Some(dt) => dt.to_string(),
                     None => String::from(""),
@@ -206,9 +205,9 @@ where
             Ok(asset_types) => {
                 let mut res_list = Vec::new();
                 for asset_type in asset_types {
-                    let id = match String::from_utf8(asset_type.id) {
-                        Ok(id) => id,
-                        Err(err) => return Err(UsecaseError::InvalidData(err.to_string())),
+                    let id = match Uuid::from_slice(&asset_type.id) {
+                        Ok(uuid) => uuid.to_string(),
+                        Err(err) => return Err(UsecaseError::InvalidData(format!("Invalid UUID format: {}", err))),
                     };
 
                     let created_at = match asset_type.created_at {

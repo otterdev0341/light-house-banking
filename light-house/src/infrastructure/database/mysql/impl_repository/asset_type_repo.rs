@@ -80,20 +80,26 @@ impl AssetTypeRepositoryBase for AssetTypeRepositoryImpl{
     }
     async fn update(
         &self, 
-        dto: ReqUpdateAssestTypeDto, 
         user_id: Uuid, 
-        asset_type_id: Uuid
+        asset_type_id: Uuid,
+        dto: ReqUpdateAssestTypeDto
     ) 
         -> Result<asset_type::Model, RepositoryError>
     {
+
+        // Validate input
+        if asset_type_id.is_nil() || user_id.is_nil() {
+        return Err(RepositoryError::InvalidInput("Invalid asset_type_id or user_id".to_string()));
+    }
+
          // Find the asset type by ID and ensure it belongs to the user
          let asset_type = asset_type::Entity::find()
-         .filter(asset_type::Column::Id.eq(asset_type_id.as_bytes().to_vec())) // Filter by asset type ID
-         .filter(asset_type::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
-         .one(self.db_pool.as_ref())
-         .await
-         .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
-
+            .filter(asset_type::Column::Id.eq(asset_type_id.as_bytes().to_vec())) // Correctly use asset_type_id
+            .filter(asset_type::Column::UserId.eq(user_id.as_bytes().to_vec())) // Correctly use user_id
+            .one(self.db_pool.as_ref())
+            .await
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+        log::debug!("Updating asset type with ID: {:?} for user ID: {:?}", asset_type_id, user_id);
         // Return an error if the asset type is not found
         let asset_type = match asset_type {
             Some(asset_type) => asset_type,

@@ -19,6 +19,6 @@ pub trait AssetTypeRepositoryBase: Send + Sync {
     async fn create(&self, user_id: Uuid, dto: ReqCreateAssetTypeDto) -> Result<asset_type::Model, RepositoryError>;
     async fn find_by_id(&self, user_id: Uuid, asset_type_id: Uuid) -> Result<Option<asset_type::Model>, RepositoryError>;
     async fn find_all(&self) -> Result<Vec<asset_type::Model>, RepositoryError>;
-    async fn update(&self, dto: ReqUpdateAssestTypeDto, user_id: Uuid, asset_type_id: Uuid) -> Result<asset_type::Model, RepositoryError>;
+    async fn update(&self,user_id: Uuid, asset_type_id: Uuid, dto: ReqUpdateAssestTypeDto  ) -> Result<asset_type::Model, RepositoryError>;
     async fn delete(&self,user_id: Uuid, asset_type_id : Uuid) -> Result<(), RepositoryError>;
 }

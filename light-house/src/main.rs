@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
-use light_house::{configuration::mysql_config::DatabaseConfig, domain::migration::Migrator, infrastructure::{database::mysql::mysql_connection, http::faring::cors::CORS}, initiation::init_usecase_setup::init_usecase_setup};
+use light_house::{configuration::mysql_config::DatabaseConfig, domain::migration::Migrator, infrastructure::{database::mysql::mysql_connection, http::faring::cors::CORS}, initiation::{init_open_api_setup::init_open_api_setup, init_usecase_setup::init_usecase_setup}};
 use rocket::{get, routes};
 use sea_orm_migration::MigratorTrait;
 use light_house::initiation::init_handler_setup::init_handler_setup;
+use utoipa_swagger_ui::SwaggerUi;
 
 
 #[get("/")]
@@ -38,6 +39,10 @@ async fn main() -> Result<(), rocket::Error>  {
         .attach(init_usecase_setup(Arc::clone(&db_arc)))
         .mount("/", routes![index])
         .attach(init_handler_setup())
+        .mount("/",
+            SwaggerUi::new("/swagger-ui/<_..>")
+                .url("/api-doc/openapi.json", init_open_api_setup())
+            )
         .launch()
         .await {
         Ok(_) => {

@@ -23,7 +23,17 @@ pub fn user_routes() -> Vec<Route> {
 }
 
 
-
+#[utoipa::path(
+    post,
+    path = "/sign-in",
+    request_body = ReqSignInDto,
+    responses(
+        (status = 200, description = "User signed in successfully", body = ResSignInDto),
+        (status = 400, description = "Validation errors", body = ErrorResponse),
+        (status = 500, description = "Invalid email or password", body = ErrorResponse)
+    ),
+    tags = ["Auth"]
+)]
 #[post("/sign-in", data = "<req_sign_in>")]
 pub async fn sign_in(
     req_sign_in: Json<ReqSignInDto>,
@@ -47,6 +57,18 @@ pub async fn sign_in(
 }
 
 
+
+#[utoipa::path(
+    post,
+    path = "/sign-up",
+    request_body = ReqSignUpDto,
+    responses(
+        (status = 201, description = "User created successfully", body = ResMeDto),
+        (status = 400, description = "Validation errors", body = ErrorResponse),
+        (status = 500, description = "Username or Email is exist", body = ErrorResponse)
+    ),
+    tags = ["Auth"]
+)]
 #[post("/sign-up", data = "<req_sign_up>")]
 pub async fn sign_up(
     req_sign_up: Json<ReqSignUpDto>,
@@ -69,6 +91,24 @@ pub async fn sign_up(
 }
 
 
+
+#[utoipa::path(
+    put,
+    path = "/user",
+    summary = "Update user",
+    description = "Update user information",
+    security(
+        ("bearer_auth" = [])
+    ),
+    request_body = ReqUpdateUserDto,
+    responses(
+        (status = 200, description = "User updated successfully", body = ResMeDto),
+        (status = 400, description = "Validation errors", body = ErrorResponse),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 500, description = "User might not be exist", body = ErrorResponse)
+    ),
+    tags = ["User"]
+)]
 #[put("/user", data = "<req_update_user>")]
 pub async fn update_user(
     user: AuthenticatedUser,
@@ -90,6 +130,23 @@ pub async fn update_user(
     }
 }
 
+
+
+#[utoipa::path(
+    post,
+    path = "/me",
+    summary = "Get user information",
+    description = "Get user information",
+    security(
+        ("bearer_auth" = [])
+    ),
+    responses(
+        (status = 200, description = "User information retrieved successfully", body = ResMeDto),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 500, description = "Invalid token can't perform", body = ErrorResponse)
+    ),
+    tags = ["Auth"]
+)]
 #[post("/me")]
 pub async fn me(user: AuthenticatedUser, user_usecase: &State<Arc<UserUseCase<UserRepositoryComposite>>>) -> OtterResponse<ResMeDto> {
     // This function is not implemented yet

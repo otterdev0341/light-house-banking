@@ -1,6 +1,7 @@
 use rocket::{http::{ContentType, Status}, Request, Response};
 use serde::Serialize;
 use rocket::response::Responder;
+use utoipa::ToSchema;
 
 
 
@@ -44,7 +45,7 @@ struct SuccessPayload<T: Serialize> {
 
 // Define a generic error response structure.
 // This struct will be serialized to JSON.
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 struct ErrorPayload<E: Serialize> {
     error: E, // The 'error' field will now contain the serialized struct E
 }
@@ -52,7 +53,7 @@ struct ErrorPayload<E: Serialize> {
 
 // The main SuccessResponse struct that holds the HTTP status and the data payload.
 // It derives Responder to handle the HTTP response details.
-#[derive(Debug)] // Add Debug for easier debugging
+#[derive(Debug, ToSchema)] // Add Debug for easier debugging
 pub struct SuccessResponse<T: Serialize>(pub Status, pub T);
 
 // Implement the Responder trait for SuccessResponse.
@@ -81,7 +82,7 @@ impl<'r, T: Serialize> Responder<'r, 'static> for SuccessResponse<T> {
 
 // The main ErrorResponse struct that holds the HTTP status and the error message.
 // It derives Responder.
-#[derive(Debug)] // Add Debug for easier debugging
+#[derive(Debug, ToSchema)] // Add Debug for easier debugging
 pub struct ErrorResponse<E: Serialize = String>(pub Status, pub E);
 
 

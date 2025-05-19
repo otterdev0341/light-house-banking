@@ -35,31 +35,35 @@ where
         &self, 
         user_id: Uuid, 
         expense_dto: ReqCreateExpenseDto
-    ) 
-        -> Result<ResEntryExpenseDto, UsecaseError>
-    {
+    ) -> Result<ResEntryExpenseDto, UsecaseError> {
         // Step 1: Create the expense in the database
         let expense_created = match self.expense_repo.create(user_id, expense_dto).await {
             Ok(expense) => expense,
-            Err(err) => return Err(UsecaseError::from(err)),
+            Err(err) => {
+                log::error!("Failed to create expense: {}", err);
+                return Err(UsecaseError::from(err));
+            }
         };
 
         // Step 2: Fetch the expense type name using the expense_type_id
         let expense_type_name = match self
             .expense_repo
-            .find_by_id(Uuid::from_slice(&expense_created.expense_type_id).map_err(|err| UsecaseError::Unexpected(err.to_string()))?)
+            .find_by_id(Uuid::from_slice(&expense_created.expense_type_id).map_err(|err| UsecaseError::InvalidData(err.to_string()))?)
             .await
         {
             Ok(Some(expense_type)) => expense_type.description,
             Ok(None) => String::from("Unknown"), // Default value if expense type is not found
-            Err(err) => return Err(UsecaseError::from(err)),
+            Err(err) => {
+                log::error!("Failed to fetch expense type: {}", err);
+                return Err(UsecaseError::from(err));
+            }
         };
 
         // Step 3: Map the result to ResEntryExpenseDto
         let res_entry = ResEntryExpenseDto {
             id: match Uuid::from_slice(&expense_created.id) {
                 Ok(id) => id.to_string(),
-                Err(err) => return Err(UsecaseError::Unexpected(err.to_string())),
+                Err(err) => return Err(UsecaseError::InvalidData(err.to_string())),
             },
             description: expense_created.description,
             expense_type_name,
@@ -129,52 +133,63 @@ where
         user_id: Uuid,  
         expense_id: Uuid, 
         expense_dto: ReqUpdateExpenseDto
-    ) 
-        -> Result<ResEntryExpenseDto, UsecaseError>
-    {
-         // Step 1: Call the repository to update the expense
-         let result = self
-         .expense_repo
-         .update(expense_dto, user_id, expense_id)
-         .await;
+    ) -> Result<ResEntryExpenseDto, UsecaseError> {
+        // Step 1: Call the repository to update the expense
+        let updated_expense = self
+            .expense_repo
+            .update(user_id, expense_id, expense_dto)
+            .await
+            .map_err(|err| {
+                log::error!("Failed to update expense: {}", err);
+                UsecaseError::from(err)
+            })?;
 
-     // Step 2: Check if the result is Ok or Err
-     match result {
-         Ok(updated_expense) => {
-             // Step 3: Fetch the expense type name using the expense_type_id
-             let expense_type_name = match self
-                 .expense_repo
-                 .find_by_user_id_and_expense_id(user_id, Uuid::from_slice(&updated_expense.expense_type_id).map_err(|err| UsecaseError::Unexpected(err.to_string()))?)
-                 .await
-             {
-                 Ok(Some(expense_type)) => expense_type.description,
-                 Ok(None) => String::from("Unknown"),
-                 Err(err) => return Err(UsecaseError::from(err)),
-             };
+        // Step 2: Fetch the expense type name using the expense_type_id
+        let expense_type_id = Uuid::from_slice(&updated_expense.expense_type_id)
+            .map_err(|err| {
+                log::error!("Invalid expense_type_id: {}", err);
+                UsecaseError::InvalidData(format!("Invalid expense_type_id: {}", err))
+            })?;
 
-             // Step 4: Map the result to ResEntryExpenseDto
-             let res_entry = ResEntryExpenseDto {
-                 id: match Uuid::from_slice(&updated_expense.id) {
-                     Ok(id) => id.to_string(),
-                     Err(err) => return Err(UsecaseError::InvalidData(err.to_string())),
-                 },
-                 description: updated_expense.description,
-                 expense_type_name,
-                 created_at: match updated_expense.created_at {
-                     Some(dt) => dt.to_string(),
-                     None => String::from(""),
-                 },
-                 updated_at: match updated_expense.updated_at {
-                     Some(dt) => dt.to_string(),
-                     None => String::from(""),
-                 },
-             };
+        let expense_type_name = match self.expense_repo.find_expense_type_by_id(expense_type_id).await {
+            Ok(Some(expense_type)) => expense_type.name,
+            Ok(None) => {
+                log::warn!(
+                    "No expense type found for expense_type_id: {}",
+                    expense_type_id
+                );
+                String::from("Unknown")
+            },
+            Err(err) => {
+                log::error!("Failed to fetch expense type: {}", err);
+                return Err(UsecaseError::from(err));
+            }
+        };
 
-             // Step 5: Return the response object
-             Ok(res_entry)
-         },
-         Err(err) => Err(UsecaseError::from(err)),
-     }
+        // Step 3: Map the result to ResEntryExpenseDto
+        let res_entry = ResEntryExpenseDto {
+            id: Uuid::from_slice(&updated_expense.id)
+                .map_err(|err| {
+                    log::error!("Invalid expense ID: {}", err);
+                    UsecaseError::InvalidData(err.to_string())
+                })?
+                .to_string(),
+            description: updated_expense.description,
+            expense_type_name,
+            created_at: match updated_expense.created_at {
+                Some(dt) => dt.to_string(),
+                None => String::from(""),
+            },
+            updated_at: match updated_expense.updated_at {
+                Some(dt) => dt.to_string(),
+                None => String::from(""),
+            },
+        };
+
+        log::debug!("Expense updated successfully: {:?}", res_entry);
+
+        // Step 4: Return the response object
+        Ok(res_entry)
     }
 
     async fn delete_expense(

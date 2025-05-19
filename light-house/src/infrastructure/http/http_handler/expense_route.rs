@@ -220,7 +220,7 @@ pub async fn update_expense_by_id(
         );
     }
     match expense_usecase.update_expense(user.id, expense_id, dto.into_inner()).await {
-        Ok(res) => Ok(SuccessResponse(Status::Created, res)),
+        Ok(res) => Ok(SuccessResponse(Status::Ok, res)),
         Err(err) => {
             let error_response = ErrorResponse(Status::InternalServerError, err.to_string());
             Err(error_response)

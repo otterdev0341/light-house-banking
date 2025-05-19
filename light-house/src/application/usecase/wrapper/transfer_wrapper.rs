@@ -158,9 +158,9 @@ impl ExpenseRepositoryBase for TransferRepositoryComposite{
     {
         self.expense_repository.find_all().await
     }
-    async fn update(&self, dto: ReqUpdateExpenseDto, user_id: Uuid, expense_id: Uuid) -> Result<expense::Model, RepositoryError>
+    async fn update(&self, user_id: Uuid,  expense_id: Uuid, dto: ReqUpdateExpenseDto) -> Result<expense::Model, RepositoryError>
     {
-        self.expense_repository.update(dto, user_id, expense_id).await
+        self.expense_repository.update(user_id, expense_id, dto).await
     }
     async fn delete(&self,user_id: Uuid, expense_id : Uuid) -> Result<(), RepositoryError>
     {
@@ -185,6 +185,10 @@ impl ExpenseRepositoryUtill for TransferRepositoryComposite {
     async fn is_in_use_in_transaction(&self, user_id: Uuid, expense_id: Uuid) -> Result<bool, RepositoryError>
     {
         self.expense_repository.is_in_use_in_transaction(user_id, expense_id).await
+    }
+    async fn find_expense_type_by_id(&self, expense_type_id: Uuid) -> Result<Option<expense_type::Model>, RepositoryError>
+    {
+        self.expense_repository.find_expense_type_by_id(expense_type_id).await
     }
 }
 

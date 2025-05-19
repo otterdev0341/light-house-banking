@@ -3,7 +3,7 @@ use std::sync::Arc;
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter};
 use uuid::Uuid;
 
-use crate::{domain::{dto::expense_dto::{ReqCreateExpenseDto, ReqUpdateExpenseDto}, entities::{expense, transaction}, req_repository::expense_repository::{ExpenseRepositoryBase, ExpenseRepositoryUtill}}, soc::soc_repository::RepositoryError};
+use crate::{domain::{dto::expense_dto::{ReqCreateExpenseDto, ReqUpdateExpenseDto}, entities::{expense, expense_type, transaction}, req_repository::expense_repository::{ExpenseRepositoryBase, ExpenseRepositoryUtill}}, soc::soc_repository::RepositoryError};
 
 
 
@@ -24,13 +24,18 @@ impl ExpenseRepositoryImpl {
 #[async_trait::async_trait]
 impl ExpenseRepositoryBase for ExpenseRepositoryImpl{
     async fn create(&self, user_id: Uuid, dto: ReqCreateExpenseDto) 
-    -> Result<expense::Model, RepositoryError>
-    {
+    -> Result<expense::Model, RepositoryError> {
+        // Validate and convert expense_type_id
+        let expense_type_id = Uuid::parse_str(&dto.expense_type_id)
+            .map_err(|err| RepositoryError::InvalidInput(format!("Invalid expense_type_id: {}", err)))?
+            .as_bytes()
+            .to_vec();
+
         // Create the ActiveModel for the expense
         let new_expense = expense::ActiveModel {
             id: Set(Uuid::new_v4().as_bytes().to_vec()), // Generate a new UUID for the expense
             description: Set(dto.description),          // Set the description from the DTO
-            expense_type_id: Set(dto.expense_type_id.as_bytes().to_vec()),  // Set the expense type ID from the DTO
+            expense_type_id: Set(expense_type_id),      // Set the validated expense type ID
             user_id: Set(user_id.as_bytes().to_vec()),  // Associate the expense with the user
             ..Default::default()
         };
@@ -80,52 +85,78 @@ impl ExpenseRepositoryBase for ExpenseRepositoryImpl{
         Ok(expenses)
     }
 
-    async fn update(&self, dto: ReqUpdateExpenseDto, user_id: Uuid, expense_id: Uuid) 
-    -> Result<expense::Model, RepositoryError>
-    {
-        // Ensure the expense belongs to the user
-        let expense_exists = expense::Entity::find()
-            .filter(expense::Column::Id.eq(expense_id.as_bytes().to_vec())) // Filter by expense ID
-            .filter(expense::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
-            .one(self.db_pool.as_ref())
-            .await
-            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+    async fn update(
+        &self, 
+        user_id: Uuid, 
+        expense_id: Uuid,
+        dto: ReqUpdateExpenseDto, 
+    ) -> Result<expense::Model, RepositoryError> {
+        // Step 1: Validate and convert `expense_type_id` if provided
+        let expense_type_id = if let Some(expense_type_id_str) = &dto.expense_type_id {
+            // Parse the `expense_type_id` string into a UUID
+            let expense_type_id = Uuid::parse_str(expense_type_id_str)
+                .map_err(|err| RepositoryError::InvalidInput(format!("Invalid expense_type_id: {}", err)))?
+                .as_bytes()
+                .to_vec();
 
-        if expense_exists.is_none() {
-            return Err(RepositoryError::NotFound(format!(
-                "Expense with ID {} not found for user {}",
-                expense_id, user_id
-            )));
-        }
+            // Step 2: Check if the `expense_type_id` exists in the `expense_type` table
+            let expense_type_exists = expense_type::Entity::find()
+                .filter(expense_type::Column::Id.eq(expense_type_id.clone())) // Filter by `expense_type_id`
+                .filter(expense_type::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
+                .one(self.db_pool.as_ref())
+                .await
+                .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
 
-        // Convert the existing expense into an ActiveModel for updating
-        let mut active_model: expense::ActiveModel = expense_exists.unwrap().into();
+            // If the `expense_type_id` does not exist, return an error
+            if expense_type_exists.is_none() {
+                return Err(RepositoryError::InvalidInput(format!(
+                    "Expense type with ID '{}' does not exist",
+                    expense_type_id_str
+                )));
+            }
 
-        // Update fields if they are provided in the DTO
+            // Return the validated and converted `expense_type_id`
+            Some(expense_type_id)
+        } else {
+            // If `expense_type_id` is not provided, set it to `None`
+            None
+        };
+
+        // Step 3: Create an `ActiveModel` for the expense
+        let mut active_model = expense::ActiveModel {
+            id: Set(expense_id.as_bytes().to_vec()), // Set the expense ID
+            user_id: Set(user_id.as_bytes().to_vec()), // Set the user ID
+            ..Default::default() // Initialize other fields with default values
+        };
+
+        // Step 4: Update the `description` field if provided in the DTO
         if let Some(description) = dto.description {
             active_model.description = Set(description);
         }
-        if let Some(expense_type_id) = dto.expense_type_id {
-            active_model.expense_type_id = Set(expense_type_id.as_bytes().to_vec());
-            
-        }
-        
 
-        // Save the updated expense to the database
+        // Step 5: Update the `expense_type_id` field if it was validated earlier
+        if let Some(expense_type_id) = expense_type_id {
+            active_model.expense_type_id = Set(expense_type_id);
+        }
+
+        // Step 6: Update the expense record in the database
         let updated_expense = active_model
-            .update(self.db_pool.as_ref())
+            .update(self.db_pool.as_ref()) // Perform the update operation
             .await
             .map_err(|err| {
+                // Handle foreign key constraint errors
                 if let sea_orm::DbErr::Exec(exec_err) = &err {
                     if exec_err.to_string().contains("FOREIGN KEY") {
-                        return RepositoryError::OperationFailed(
-                            "Invalid expense type ID".to_string(),
+                        return RepositoryError::InvalidInput(
+                            "Invalid expense_type_id: does not satisfy foreign key constraint".to_string(),
                         );
                     }
                 }
+                // Handle other database errors
                 RepositoryError::DatabaseError(err.to_string())
             })?;
 
+        // Step 7: Return the updated expense record
         Ok(updated_expense)
     }
 
@@ -232,5 +263,18 @@ impl ExpenseRepositoryUtill for ExpenseRepositoryImpl {
 
         // Return true if the expense is in use, otherwise false
         Ok(is_in_use > 0)
+    }
+
+    async fn find_expense_type_by_id(&self, expense_type_id: Uuid) -> Result<Option<expense_type::Model>, RepositoryError>
+    {
+        // Query the database to find the expense type by ID
+        let expense_type = expense_type::Entity::find()
+            .filter(expense_type::Column::Id.eq(expense_type_id.as_bytes().to_vec())) // Filter by expense type ID
+            .one(self.db_pool.as_ref())
+            .await
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+
+        // Return the expense type if found, or None if not found
+        Ok(expense_type)
     }
 }

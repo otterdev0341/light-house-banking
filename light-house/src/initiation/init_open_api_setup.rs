@@ -1,6 +1,6 @@
 use utoipa::OpenApi;
 
-use crate::{configuration::api_doc_config::ApiConfig, swagger_ui::{asset_api::AssetApi, asset_type_api::AssetTypeApi, auth_api::AuthApi, contact_api::ContactApi, contact_type_api::ContactTypeApi, expense_type::ExpenseTypeApi, user_api::UserApi}};
+use crate::{configuration::api_doc_config::ApiConfig, swagger_ui::{asset_api::AssetApi, asset_type_api::AssetTypeApi, auth_api::AuthApi, contact_api::ContactApi, contact_type_api::ContactTypeApi, expense_api::ExpenseApi, expense_type::ExpenseTypeApi, user_api::UserApi}};
 
 
 
@@ -15,6 +15,7 @@ pub fn init_open_api_setup() -> utoipa::openapi::OpenApi {
         ContactTypeApi::openapi(),
         ContactApi::openapi(),
         ExpenseTypeApi::openapi(),
+        ExpenseApi::openapi(),
     
     ];
 

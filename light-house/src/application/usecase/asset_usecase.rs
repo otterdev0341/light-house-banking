@@ -72,48 +72,44 @@ where
     ) -> Result<Option<ResEntryAssetDto>, UsecaseError> {
         // Step 1: Fetch the asset by user_id and asset_id from the repository
         let asset = match self.asset_repository.find_by_id(user_id, asset_id).await {
-            // If the asset is found, proceed to fetch its details
-            Ok(Some(asset)) => {
-                // Step 2: Extract the asset_type_id and convert it to a Uuid
-                let asset_type_id = match Uuid::from_slice(&asset.asset_type_id) {
-                    Ok(id) => id,
-                    Err(err) => return Err(UsecaseError::Unexpected(err.to_string())), // Handle invalid UUID error
-                };
-
-                // Step 3: Fetch the asset type name using the asset_type_id
-                let asset_type = match self.asset_repository.find_by_id(user_id, asset_type_id).await {
-                    Ok(Some(asset_type)) => asset_type.name, // If found, use the asset type name
-                    Ok(None) => String::from("Unknown"),    // Default value if asset type is not found
-                    Err(err) => return Err(UsecaseError::from(err)), // Handle repository errors
-                };
-
-                // Step 4: Map the asset details to ResEntryAssetDto
-                Some(ResEntryAssetDto {
-                    id: match String::from_utf8(asset.id) {
-                        Ok(id) => id, // Convert the asset ID from Vec<u8> to String
-                        Err(err) => return Err(UsecaseError::Unexpected(err.to_string())), // Handle invalid UTF-8 error
-                    },
-                    name: asset.name, // Asset name
-                    asset_type,       // Asset type name
-                    created_at: match asset.created_at {
-                        Some(dt) => dt.to_string(), // Convert created_at to String if present
-                        None => String::from(""),   // Default to an empty string if None
-                    },
-                    updated_at: match asset.updated_at {
-                        Some(dt) => dt.to_string(), // Convert updated_at to String if present
-                        None => String::from(""),   // Default to an empty string if None
-                    },
-                })
-            },
-            // If the asset is not found, return None
-            Ok(None) => return Ok(None),
-
-            // Step 5: Handle repository errors
-            Err(err) => return Err(UsecaseError::from(err)),
+            Ok(Some(asset)) => asset,
+            Ok(None) => return Ok(None), // Asset not found
+            Err(err) => return Err(UsecaseError::from(err)), // Handle repository errors
         };
 
-        // Step 6: Return the mapped asset details
-        Ok(asset)
+        // Step 2: Extract the asset_type_id and convert it to a Uuid
+        let asset_type_id = match Uuid::from_slice(&asset.asset_type_id) {
+            Ok(id) => id,
+            Err(err) => return Err(UsecaseError::Unexpected(err.to_string())), // Handle invalid UUID error
+        };
+
+        // Step 3: Fetch the asset type name using the asset_type_id
+        let asset_type = match self.asset_repository.find_by_id(user_id, asset_type_id).await {
+            Ok(Some(asset_type)) => asset_type.name, // If found, use the asset type name
+            Ok(None) => String::from("Unknown"),    // Default value if asset type is not found
+            Err(err) => return Err(UsecaseError::from(err)), // Handle repository errors
+        };
+
+        // Step 4: Map the asset details to ResEntryAssetDto
+        let res_entry = ResEntryAssetDto {
+            id: match Uuid::from_slice(&asset.id) {
+                Ok(id) => id.to_string(), // Convert the asset ID from Vec<u8> to String
+                Err(err) => return Err(UsecaseError::Unexpected(err.to_string())), // Handle invalid UTF-8 error
+            },
+            name: asset.name, // Asset name
+            asset_type,       // Asset type name
+            created_at: match asset.created_at {
+                Some(dt) => dt.to_string(), // Convert created_at to String if present
+                None => String::from(""),   // Default to an empty string if None
+            },
+            updated_at: match asset.updated_at {
+                Some(dt) => dt.to_string(), // Convert updated_at to String if present
+                None => String::from(""),   // Default to an empty string if None
+            },
+        };
+
+        // Step 5: Return the mapped asset details
+        Ok(Some(res_entry))
     }
 
     async fn update_asset(
@@ -211,9 +207,7 @@ where
     async fn get_all_asset(
         &self, 
         user_id: Uuid
-    ) 
-        -> Result<ResListAssetDto, UsecaseError>
-    {
+    ) -> Result<ResListAssetDto, UsecaseError> {
         // Step 1: Fetch all assets for the user from the repository
         let assets = match self.asset_repository.find_all_by_user_id(user_id).await {
             Ok(assets) => assets,
@@ -238,9 +232,9 @@ where
 
             // Map the asset to ResEntryAssetDto
             let entry = ResEntryAssetDto {
-                id: match String::from_utf8(asset.id) {
-                    Ok(id) => id,
-                    Err(err) => return Err(UsecaseError::Unexpected(err.to_string())), // Handle invalid UTF-8 error
+                id: match Uuid::from_slice(&asset.id) {
+                    Ok(id) => id.to_string(),
+                    Err(err) => return Err(UsecaseError::Unexpected(err.to_string())), // Handle invalid UUID error
                 },
                 name: asset.name,
                 asset_type,

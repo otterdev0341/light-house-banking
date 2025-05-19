@@ -41,8 +41,8 @@ where
         match self.expense_type_repo.create(user_id, expense_type_dto).await {
             Ok(expense_type) => {
                 let res_entry = ResEntryExpenseTypeDto {
-                    id: match String::from_utf8(expense_type.id) {
-                        Ok(id) => id, // Convert the ID from Vec<u8> to String
+                    id: match Uuid::from_slice(&expense_type.id) {
+                        Ok(id) => id.to_string(), // Convert the ID from Vec<u8> to String
                         Err(err) => return Err(UsecaseError::Unexpected(err.to_string())), // Handle invalid UTF-8 error
                     },
                     name: expense_type.name, // Expense type name
@@ -73,8 +73,8 @@ where
             Ok(expense_type) => {
                 if let Some(expense_type) = expense_type {
                     let res_entry = ResEntryExpenseTypeDto {
-                        id: match String::from_utf8(expense_type.id) {
-                            Ok(id) => id, // Convert the ID from Vec<u8> to String
+                        id: match Uuid::from_slice(&expense_type.id) {
+                            Ok(id) => id.to_string(), // Convert the ID from Vec<u8> to String
                             Err(err) => return Err(UsecaseError::Unexpected(err.to_string())), // Handle invalid UTF-8 error
                         },
                         name: expense_type.name, // Expense type name
@@ -106,8 +106,8 @@ where
         match self.expense_type_repo.update(expense_type_dto, user_id, expense_type_id).await {
             Ok(expense_type) => {
                 let res_entry = ResEntryExpenseTypeDto {
-                    id: match String::from_utf8(expense_type.id) {
-                        Ok(id) => id, // Convert the ID from Vec<u8> to String
+                    id: match Uuid::from_slice(&expense_type.id) {
+                        Ok(id) => id.to_string(), // Convert the ID from Vec<u8> to String
                         Err(err) => return Err(UsecaseError::Unexpected(err.to_string())), // Handle invalid UTF-8 error
                     },
                     name: expense_type.name, // Expense type name
@@ -149,8 +149,8 @@ where
             Ok(expense_types) => {
                 let mut data = Vec::new();
                 for expense_type in expense_types {
-                    let id = match String::from_utf8(expense_type.id) {
-                        Ok(id) => id, // Convert the ID from Vec<u8> to String
+                    let id = match Uuid::from_slice(&expense_type.id) {
+                        Ok(id) => id.to_string(), // Convert the ID from Vec<u8> to String
                         Err(err) => return Err(UsecaseError::Unexpected(err.to_string())), // Handle invalid UTF-8 error
                     };
                     let created_at = match expense_type.created_at {

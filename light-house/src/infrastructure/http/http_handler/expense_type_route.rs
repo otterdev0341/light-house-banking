@@ -217,7 +217,7 @@ pub async fn update_expense_type(
 ) -> OtterResponse<ResEntryExpenseTypeDto> {
 
     match expense_type_usecase.update_expense_type(user.id, expense_type_id, dto.into_inner()).await {
-        Ok(res) => Ok(SuccessResponse(Status::Created, res)),
+        Ok(res) => Ok(SuccessResponse(Status::Ok, res)),
         Err(err) => {
             let error_response = ErrorResponse(Status::InternalServerError, err.to_string());
             Err(error_response)

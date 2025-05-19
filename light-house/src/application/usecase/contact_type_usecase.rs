@@ -33,74 +33,65 @@ where
         &self, 
         user_id: Uuid, 
         contact_type_dto: ReqCreateContactTypeDto
-    ) 
-        -> Result<ResEntryContactTypeDto, UsecaseError>
-    {
-       // Step 1: Create the contact type in the database
-       let contact_type_created = match self.contact_type_repo.create(user_id, contact_type_dto).await {
+    ) -> Result<ResEntryContactTypeDto, UsecaseError> {
+        // Step 1: Create the contact type in the database
+        let contact_type_created = match self.contact_type_repo.create(user_id, contact_type_dto).await {
             Ok(contact_type) => contact_type,
             Err(err) => return Err(UsecaseError::from(err)), // Handle repository errors
         };
 
-    // Step 2: Map the result to ResEntryContactTypeDto
-    let res_entry = ResEntryContactTypeDto {
-        id: match String::from_utf8(contact_type_created.id) {
-            Ok(id) => id, // Convert the ID from Vec<u8> to String
-            Err(err) => return Err(UsecaseError::Unexpected(err.to_string())), // Handle invalid UTF-8 error
-        },
-        name: contact_type_created.name, // Contact type name
-        created_at: match contact_type_created.created_at {
-            Some(dt) => dt.to_string(), // Convert created_at to String if present
-            None => String::from(""),   // Default to an empty string if None
-        },
-        updated_at: match contact_type_created.updated_at {
-            Some(dt) => dt.to_string(), // Convert updated_at to String if present
-            None => String::from(""),   // Default to an empty string if None
-        },
-    };
+        // Step 2: Map the result to ResEntryContactTypeDto
+        let res_entry = ResEntryContactTypeDto {
+            id: match Uuid::from_slice(&contact_type_created.id) {
+                Ok(id) => id.to_string(), // Convert the ID from Vec<u8> to String
+                Err(err) => return Err(UsecaseError::Unexpected(err.to_string())), // Handle invalid UUID error
+            },
+            name: contact_type_created.name, // Contact type name
+            created_at: match contact_type_created.created_at {
+                Some(dt) => dt.to_string(), // Convert created_at to String if present
+                None => String::from(""),   // Default to an empty string if None
+            },
+            updated_at: match contact_type_created.updated_at {
+                Some(dt) => dt.to_string(), // Convert updated_at to String if present
+                None => String::from(""),   // Default to an empty string if None
+            },
+        };
 
         // Step 3: Return the response object
         Ok(res_entry)
-       
     }
 
     async fn get_contact_type(
         &self, 
-        user_id: Uuid , 
+        user_id: Uuid, 
         contact_type_id: Uuid
-    ) 
-        -> Result<Option<ResEntryContactTypeDto>, UsecaseError>
-    {
-         // Step 1: Fetch the contact type by user_id and contact_type_id from the repository
-         let contact_type = match self.contact_type_repo.find_by_id(user_id, contact_type_id).await {
-            // If the contact type is found, proceed to map its details
-            Ok(Some(contact_type)) => {
-                // Step 2: Map the contact type details to ResEntryContactTypeDto
-                Some(ResEntryContactTypeDto {
-                    id: match String::from_utf8(contact_type.id) {
-                        Ok(id) => id, // Convert the ID from Vec<u8> to String
-                        Err(err) => return Err(UsecaseError::Unexpected(err.to_string())), // Handle invalid UTF-8 error
-                    },
-                    name: contact_type.name, // Contact type name
-                    created_at: match contact_type.created_at {
-                        Some(dt) => dt.to_string(), // Convert created_at to String if present
-                        None => String::from(""),   // Default to an empty string if None
-                    },
-                    updated_at: match contact_type.updated_at {
-                        Some(dt) => dt.to_string(), // Convert updated_at to String if present
-                        None => String::from(""),   // Default to an empty string if None
-                    },
-                })
-            }
-            // If the contact type is not found, return None
-            Ok(None) => return Ok(None),
-
-            // Step 3: Handle repository errors
-            Err(err) => return Err(UsecaseError::from(err)),
+    ) -> Result<Option<ResEntryContactTypeDto>, UsecaseError> {
+        // Step 1: Fetch the contact type by user_id and contact_type_id from the repository
+        let contact_type = match self.contact_type_repo.find_by_id(user_id, contact_type_id).await {
+            Ok(Some(contact_type)) => contact_type,
+            Ok(None) => return Ok(None), // Contact type not found
+            Err(err) => return Err(UsecaseError::from(err)), // Handle repository errors
         };
 
-        // Step 4: Return the mapped contact type details
-        Ok(contact_type)
+        // Step 2: Map the contact type details to ResEntryContactTypeDto
+        let res_entry = ResEntryContactTypeDto {
+            id: match Uuid::from_slice(&contact_type.id) {
+                Ok(id) => id.to_string(), // Convert the ID from Vec<u8> to String
+                Err(err) => return Err(UsecaseError::Unexpected(err.to_string())), // Handle invalid UUID error
+            },
+            name: contact_type.name, // Contact type name
+            created_at: match contact_type.created_at {
+                Some(dt) => dt.to_string(), // Convert created_at to String if present
+                None => String::from(""),   // Default to an empty string if None
+            },
+            updated_at: match contact_type.updated_at {
+                Some(dt) => dt.to_string(), // Convert updated_at to String if present
+                None => String::from(""),   // Default to an empty string if None
+            },
+        };
+
+        // Step 3: Return the mapped contact type details
+        Ok(Some(res_entry))
     }
 
 
@@ -109,49 +100,36 @@ where
         user_id: Uuid,  
         contact_type_id: Uuid, 
         contact_type_dto: ReqUpdateContactTypeDto
-    ) 
-        -> Result<ResEntryContactTypeDto, UsecaseError>
-    {
+    ) -> Result<ResEntryContactTypeDto, UsecaseError> {
         // Step 1: Call the repository to update the contact type
-        let result = self
+        let updated_contact_type = match self
             .contact_type_repo
             .update(contact_type_dto, user_id, contact_type_id)
-            .await;
+            .await
+        {
+            Ok(contact_type) => contact_type,
+            Err(err) => return Err(UsecaseError::from(err)), // Handle repository errors
+        };
 
-        // Step 2: Check if the result is Ok or Err
-        match result {
-            Ok(updated_contact_type) => {
-                // Step 3: Map the result to ResEntryContactTypeDto
-                let id = match String::from_utf8(updated_contact_type.id) {
-                    Ok(id) => id,
-                    Err(err) => return Err(UsecaseError::InvalidData(err.to_string())),
-                };
-
-                let created_at = match updated_contact_type.created_at {
-                    Some(dt) => dt.to_string(),
-                    None => String::from(""),
-                };
-
-                let updated_at = match updated_contact_type.updated_at {
-                    Some(dt) => dt.to_string(),
-                    None => String::from(""),
-                };
-
-                let res_entry = ResEntryContactTypeDto {
-                    id,
-                    name: updated_contact_type.name,
-                    created_at,
-                    updated_at,
-                };
-
-                // Step 4: Return the response object
-                Ok(res_entry)
+        // Step 2: Map the updated contact type to ResEntryContactTypeDto
+        let res_entry = ResEntryContactTypeDto {
+            id: match Uuid::from_slice(&updated_contact_type.id) {
+                Ok(id) => id.to_string(), // Convert the ID from Vec<u8> to String
+                Err(err) => return Err(UsecaseError::InvalidData(err.to_string())), // Handle invalid UUID error
             },
-            Err(err) => {
-                // Step 6: Handle the error and return it as UsecaseError
-                Err(UsecaseError::from(err))
-            }
-        }
+            name: updated_contact_type.name, // Contact type name
+            created_at: match updated_contact_type.created_at {
+                Some(dt) => dt.to_string(), // Convert created_at to String if present
+                None => String::from(""),   // Default to an empty string if None
+            },
+            updated_at: match updated_contact_type.updated_at {
+                Some(dt) => dt.to_string(), // Convert updated_at to String if present
+                None => String::from(""),   // Default to an empty string if None
+            },
+        };
+
+        // Step 3: Return the response object
+        Ok(res_entry)
     }
 
     async fn delete_contact_type(
@@ -190,9 +168,7 @@ where
     async fn get_all_contact_type(
         &self, 
         user_id: Uuid
-    ) 
-        -> Result<ResListContactTypeDto, UsecaseError>
-    {
+    ) -> Result<ResListContactTypeDto, UsecaseError> {
         // Step 1: Fetch all contact types for the user from the repository
         let contact_types = match self.contact_type_repo.find_all_by_user_id(user_id).await {
             Ok(contact_types) => contact_types,
@@ -202,9 +178,9 @@ where
         // Step 2: Map the contact types to ResEntryContactTypeDto
         let mut data = Vec::new();
         for contact_type in contact_types {
-            let id = match String::from_utf8(contact_type.id) {
-                Ok(id) => id, // Convert the ID from Vec<u8> to String
-                Err(err) => return Err(UsecaseError::InvalidData(err.to_string())), // Handle invalid UTF-8 error
+            let id = match Uuid::from_slice(&contact_type.id) {
+                Ok(id) => id.to_string(), // Convert the ID from Vec<u8> to String
+                Err(err) => return Err(UsecaseError::InvalidData(err.to_string())), // Handle invalid UUID error
             };
 
             let created_at = match contact_type.created_at {
@@ -237,4 +213,3 @@ where
         Ok(res_list)
     }
 }
-   

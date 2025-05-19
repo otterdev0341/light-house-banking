@@ -213,17 +213,15 @@ impl AssetRepositoryBase for AssetRepositoryImpl{
     async fn delete(
         &self,
         user_id: Uuid, 
-        asset_id : Uuid
-    ) 
-        -> Result<(), RepositoryError>
-    {
-         // Attempt to delete the asset by ID and ensure it belongs to the user
+        asset_id: Uuid
+    ) -> Result<(), RepositoryError> {
+        // Attempt to delete the asset by ID and ensure it belongs to the user
         let result = asset::Entity::delete_many()
-        .filter(asset::Column::Id.eq(asset_id.as_bytes().to_vec())) // Filter by asset ID
-        .filter(asset::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
-        .exec(self.db_pool.as_ref())
-        .await
-        .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+            .filter(asset::Column::Id.eq(asset_id.as_bytes().to_vec())) // Filter by asset ID
+            .filter(asset::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
+            .exec(self.db_pool.as_ref())
+            .await
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
 
         // Check if any rows were affected (i.e., if the asset was deleted)
         if result.rows_affected == 0 {
@@ -238,11 +236,26 @@ impl AssetRepositoryBase for AssetRepositoryImpl{
             db_pool: Arc::clone(&self.db_pool),
         };
 
-        balance_repo
-            .delete_current_sheet_by_asset_id(user_id, asset_id)
-            .await?;
-
-        Ok(())
+        match balance_repo.delete_current_sheet_by_asset_id(user_id, asset_id).await {
+            Ok(_) => Ok(()), // Successfully deleted
+            Err(RepositoryError::NotFound(_)) => {
+                log::warn!(
+                    "No CurrentSheet record found for asset ID {} and user ID {}",
+                    asset_id,
+                    user_id
+                );
+                Ok(()) // Gracefully handle missing CurrentSheet
+            }
+            Err(err) => {
+                log::error!(
+                    "Error deleting CurrentSheet for asset ID {} and user ID {}: {}",
+                    asset_id,
+                    user_id,
+                    err
+                );
+                Err(err) // Propagate other errors
+            }
+        }
     }
 }
 

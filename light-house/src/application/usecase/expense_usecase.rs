@@ -57,8 +57,8 @@ where
 
         // Step 3: Map the result to ResEntryExpenseDto
         let res_entry = ResEntryExpenseDto {
-            id: match String::from_utf8(expense_created.id) {
-                Ok(id) => id,
+            id: match Uuid::from_slice(&expense_created.id) {
+                Ok(id) => id.to_string(),
                 Err(err) => return Err(UsecaseError::Unexpected(err.to_string())),
             },
             description: expense_created.description,
@@ -100,8 +100,8 @@ where
 
                 // Step 3: Map the expense details to ResEntryExpenseDto
                 Some(ResEntryExpenseDto {
-                    id: match String::from_utf8(expense.id) {
-                        Ok(id) => id,
+                    id: match Uuid::from_slice(&expense.id) {
+                        Ok(id) => id.to_string(),
                         Err(err) => return Err(UsecaseError::Unexpected(err.to_string())),
                     },
                     description: expense.description,
@@ -154,8 +154,8 @@ where
 
              // Step 4: Map the result to ResEntryExpenseDto
              let res_entry = ResEntryExpenseDto {
-                 id: match String::from_utf8(updated_expense.id) {
-                     Ok(id) => id,
+                 id: match Uuid::from_slice(&updated_expense.id) {
+                     Ok(id) => id.to_string(),
                      Err(err) => return Err(UsecaseError::InvalidData(err.to_string())),
                  },
                  description: updated_expense.description,
@@ -237,8 +237,8 @@ where
             };
 
             let res_entry = ResEntryExpenseDto {
-                id: match String::from_utf8(expense.id) {
-                    Ok(id) => id,
+                id: match Uuid::from_slice(&expense.id) {
+                    Ok(id) => id.to_string(),
                     Err(err) => return Err(UsecaseError::Unexpected(err.to_string())),
                 },
                 description: expense.description,

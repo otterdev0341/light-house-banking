@@ -35,35 +35,21 @@ where
         &self, 
         user_id: Uuid, 
         asset_dto: ReqCreateAssetDto
-    ) 
-        -> Result<ResEntryAssetDto, UsecaseError>
-    {
+    ) -> Result<ResEntryAssetDto, UsecaseError> {
         // Step 1: Create the asset in the database
         let asset_created = match self.asset_repository.create(user_id, asset_dto).await {
             Ok(asset) => asset,
             Err(err) => return Err(UsecaseError::from(err)),
         };
 
-        // Step 2: Fetch the asset type name using the asset_type_id from the created asset
-        let asset_type_id = match Uuid::from_slice(&asset_created.asset_type_id) {
-            Ok(id) => id,
-            Err(err) => return Err(UsecaseError::Unexpected(err.to_string())),
-        };
-
-        let asset_type = match self.asset_repository.find_by_id(user_id, asset_type_id).await {
-            Ok(Some(asset_type)) => asset_type.name,
-            Ok(None) => String::from("Unknown"), // Default value if asset type is not found
-            Err(err) => return Err(UsecaseError::from(err)),
-        };
-
-        // Step 3: Map the result to ResEntryAssetDto
+        // Step 2: Map the result to ResEntryAssetDto
         let res_entry = ResEntryAssetDto {
-            id: match String::from_utf8(asset_created.id) {
-                Ok(id) => id,
+            id: match Uuid::from_slice(&asset_created.id) {
+                Ok(id) => id.to_string(),
                 Err(err) => return Err(UsecaseError::Unexpected(err.to_string())),
             },
             name: asset_created.name,
-            asset_type,
+            asset_type: String::from("Unknown"), // Default value for asset type
             created_at: match asset_created.created_at {
                 Some(dt) => dt.to_string(),
                 None => String::from(""),
@@ -74,7 +60,7 @@ where
             },
         };
 
-        // Step 4: Return the response object
+        // Step 3: Return the response object
         Ok(res_entry)
         
     }

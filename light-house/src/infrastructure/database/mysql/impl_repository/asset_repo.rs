@@ -29,14 +29,24 @@ impl AssetRepositoryBase for AssetRepositoryImpl{
         &self, 
         user_id: Uuid, 
         dto: ReqCreateAssetDto
-    ) 
-        -> Result<asset::Model, RepositoryError>
-    {
-         // Create the ActiveModel for the asset
+    ) -> Result<asset::Model, RepositoryError> {
+        log::debug!(
+            "Creating asset with name: {}, asset_type_id: {}, user_id: {}",
+            dto.name,
+            dto.asset_type_id,
+            user_id
+        );
+
+        let asset_type_id = Uuid::parse_str(&dto.asset_type_id)
+            .map_err(|err| RepositoryError::InvalidInput(format!("Invalid asset_type_id: {}", err)))?
+            .as_bytes()
+            .to_vec();
+
+        // Create the ActiveModel for the asset
         let new_asset = asset::ActiveModel {
             id: Set(Uuid::new_v4().as_bytes().to_vec()), // Generate a new UUID for the asset
             name: Set(dto.name),
-            asset_type_id: Set(dto.asset_type_id.as_bytes().to_vec()), // Set the asset type ID
+            asset_type_id: Set(asset_type_id), // Set the asset type ID
             user_id: Set(user_id.as_bytes().to_vec()), // Set the user ID
             ..Default::default()
         };
@@ -69,7 +79,19 @@ impl AssetRepositoryBase for AssetRepositoryImpl{
             )
             .await?;
 
-        Ok(inserted_asset)
+        // Fetch the inserted asset using the correct asset_id
+        log::debug!(
+            "Fetching asset with ID: {:?} for user ID: {:?}",
+            inserted_asset.id,
+            user_id
+        );
+        let asset = self.find_by_id(user_id, Uuid::from_slice(&inserted_asset.id).unwrap()).await?;
+
+        match asset {
+            Some(asset) => Ok(asset),
+            None => Err(RepositoryError::NotFound("Asset not found".to_string())),
+        }
+        
     }
 
 
@@ -80,14 +102,25 @@ impl AssetRepositoryBase for AssetRepositoryImpl{
     ) 
         -> Result<Option<asset::Model>, RepositoryError>
     {
+        log::debug!(
+            "Fetching asset with ID: {:?} for user ID: {:?}",
+            asset_id,
+            user_id
+        );
+    
+        // Validate input
+        if asset_id.is_nil() || user_id.is_nil() {
+            return Err(RepositoryError::InvalidInput("Invalid asset_id or user_id".to_string()));
+        }
+    
         // Query the database to find the asset by ID and ensure it belongs to the user
         let asset = asset::Entity::find()
-            .filter(asset::Column::Id.eq(asset_id.as_bytes().to_vec())) // Filter by asset ID
+            .filter(asset::Column::Id.eq(asset_id.as_bytes().to_vec())) // Use asset_id instead of asset_type_id
             .filter(asset::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
             .one(self.db_pool.as_ref())
             .await
             .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
-
+    
         // Return the asset if found, or None if not found
         Ok(asset)
     }

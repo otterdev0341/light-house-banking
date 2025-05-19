@@ -147,8 +147,8 @@ where
         match result {
             Ok(updated_asset) => {
                 // Step 3: Map the result to ResEntryAssetDto
-                let id = match String::from_utf8(updated_asset.id) {
-                    Ok(id) => id,
+                let id = match Uuid::from_slice(&updated_asset.id) {
+                    Ok(id) => id.to_string(),
                     Err(err) => return Err(UsecaseError::InvalidData(err.to_string())),
                 };
 

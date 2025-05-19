@@ -2,7 +2,7 @@ use std::{ops::Deref, sync::Arc};
 
 use uuid::Uuid;
 
-use crate::{domain::{dto::{asset_dto::{ReqCreateAssetDto, ReqUpdateAssetDto}, contact_dto::{ReqCreateContactDto, ReqUpdateContactDto}, transaction_dto::{ReqCreatePaymentDto, ReqUpdatePaymentDto}}, entities::{asset, contact, transaction}, req_repository::{asset_repository::{AssetRepositoryBase, AssetRepositoryUtility}, contact_repository::{ContactRepositoryBase, ContactRepositoryUtility}, transaction_repository::RecordPaymentRepositoryUtility}}, infrastructure::database::mysql::impl_repository::{asset_repo::AssetRepositoryImpl, contact_repo::ContactRepositoryImpl, transaction::payment_repo::PaymentRepositoryImpl}, soc::soc_repository::RepositoryError};
+use crate::{domain::{dto::{asset_dto::{ReqCreateAssetDto, ReqUpdateAssetDto}, contact_dto::{ReqCreateContactDto, ReqUpdateContactDto}, transaction_dto::{ReqCreatePaymentDto, ReqUpdatePaymentDto}}, entities::{asset, contact, contact_type, transaction}, req_repository::{asset_repository::{AssetRepositoryBase, AssetRepositoryUtility}, contact_repository::{ContactRepositoryBase, ContactRepositoryUtility}, transaction_repository::RecordPaymentRepositoryUtility}}, infrastructure::database::mysql::impl_repository::{asset_repo::AssetRepositoryImpl, contact_repo::ContactRepositoryImpl, transaction::payment_repo::PaymentRepositoryImpl}, soc::soc_repository::RepositoryError};
 
 
 
@@ -134,5 +134,9 @@ impl ContactRepositoryUtility for PaymentRepositoryComposite{
     async fn is_in_use_in_transaction(&self, user_id: Uuid, contact_id: Uuid) -> Result<bool, RepositoryError>
     {
         self.contact_repository.is_in_use_in_transaction(user_id, contact_id).await
+    }
+    async fn find_contact_type_by_id(&self, user_id: Uuid, contact_type_id: Uuid) -> Result<Option<contact_type::Model>, RepositoryError>
+    {
+        self.contact_repository.find_contact_type_by_id(user_id, contact_type_id).await
     }
 }

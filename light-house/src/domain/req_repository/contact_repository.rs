@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::{domain::{dto::contact_dto::{ReqCreateContactDto, ReqUpdateContactDto}, entities::contact}, soc::soc_repository::RepositoryError};
+use crate::{domain::{dto::contact_dto::{ReqCreateContactDto, ReqUpdateContactDto}, entities::{contact, contact_type}}, soc::soc_repository::RepositoryError};
 
 
 
@@ -12,6 +12,7 @@ pub trait ContactRepositoryUtility: Send + Sync {
     async fn find_by_user_id_and_contact_id(&self, user_id: Uuid, contact_id: Uuid) -> Result<Option<contact::Model>, RepositoryError>;
     async fn find_by_user_id_and_contact_type_id(&self, user_id: uuid::Uuid, contact_id: Uuid) -> Result<Option<contact::Model>, RepositoryError>;
     async fn is_in_use_in_transaction(&self, user_id: Uuid, contact_id: Uuid) -> Result<bool, RepositoryError>;
+    async fn find_contact_type_by_id(&self, user_id: Uuid, contact_type_id: Uuid) -> Result<Option<contact_type::Model>, RepositoryError>;
 }
 
 

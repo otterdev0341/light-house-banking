@@ -2,7 +2,7 @@ use std::{ops::Deref, sync::Arc};
 
 use uuid::Uuid;
 
-use crate::{domain::{dto::{assest_type_dto::{ReqCreateAssetTypeDto, ReqUpdateAssestTypeDto}, asset_dto::{ReqCreateAssetDto, ReqUpdateAssetDto}, contact_dto::{ReqCreateContactDto, ReqUpdateContactDto}, expense_dto::{ReqCreateExpenseDto, ReqUpdateExpenseDto}, expense_type_dto::{ReqCreateExpenseTypeDto, ReqUpdateExpenseTypeDto}, transaction_dto::{ReqCreateTransferDto, ReqUpdateTransferDto}}, entities::{asset, asset_type, contact, expense, expense_type, transaction}, req_repository::{asset_repository::{AssetRepositoryBase, AssetRepositoryUtility}, asset_type_repository::{AssetTypeRepositoryBase, AssetTypeRepositoryUtility}, contact_repository::{ContactRepositoryBase, ContactRepositoryUtility}, expense_repository::{ExpenseRepositoryBase, ExpenseRepositoryUtill}, expense_type_repository::{ExpenseTypeRepositoryBase, ExpenseTypeRepositoryUtility}, transaction_repository::TransferRepositoryUtility}}, infrastructure::database::mysql::impl_repository::{asset_repo::AssetRepositoryImpl, asset_type_repo::AssetTypeRepositoryImpl, contact_repo::ContactRepositoryImpl, expense_repo::ExpenseRepositoryImpl, expense_type_repos::ExpenseTypeRepositoryImpl, transaction::transfer_repo::TransferRepositoryImpl}, soc::soc_repository::RepositoryError};
+use crate::{domain::{dto::{assest_type_dto::{ReqCreateAssetTypeDto, ReqUpdateAssestTypeDto}, asset_dto::{ReqCreateAssetDto, ReqUpdateAssetDto}, contact_dto::{ReqCreateContactDto, ReqUpdateContactDto}, expense_dto::{ReqCreateExpenseDto, ReqUpdateExpenseDto}, expense_type_dto::{ReqCreateExpenseTypeDto, ReqUpdateExpenseTypeDto}, transaction_dto::{ReqCreateTransferDto, ReqUpdateTransferDto}}, entities::{asset, asset_type, contact, contact_type, expense, expense_type, transaction}, req_repository::{asset_repository::{AssetRepositoryBase, AssetRepositoryUtility}, asset_type_repository::{AssetTypeRepositoryBase, AssetTypeRepositoryUtility}, contact_repository::{ContactRepositoryBase, ContactRepositoryUtility}, expense_repository::{ExpenseRepositoryBase, ExpenseRepositoryUtill}, expense_type_repository::{ExpenseTypeRepositoryBase, ExpenseTypeRepositoryUtility}, transaction_repository::TransferRepositoryUtility}}, infrastructure::database::mysql::impl_repository::{asset_repo::AssetRepositoryImpl, asset_type_repo::AssetTypeRepositoryImpl, contact_repo::ContactRepositoryImpl, expense_repo::ExpenseRepositoryImpl, expense_type_repos::ExpenseTypeRepositoryImpl, transaction::transfer_repo::TransferRepositoryImpl}, soc::soc_repository::RepositoryError};
 
 
 
@@ -270,5 +270,9 @@ impl ContactRepositoryUtility for TransferRepositoryComposite {
     async fn is_in_use_in_transaction(&self, user_id: Uuid, contact_id: Uuid) -> Result<bool, RepositoryError>
     {
         self.contact_repository.is_in_use_in_transaction(user_id, contact_id).await
+    }
+    async fn find_contact_type_by_id(&self, user_id: Uuid, contact_type_id: Uuid) -> Result<Option<contact_type::Model>, RepositoryError>
+    {
+        self.contact_repository.find_contact_type_by_id(user_id, contact_type_id).await
     }
 }

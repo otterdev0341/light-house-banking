@@ -3,7 +3,7 @@ use std::sync::Arc;
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QuerySelect, QueryTrait, TransactionTrait};
 use uuid::Uuid;
 
-use crate::{domain::{dto::contact_dto::{ReqCreateContactDto, ReqUpdateContactDto}, entities::{contact, user_contact}, req_repository::contact_repository::{ContactRepositoryBase, ContactRepositoryUtility}}, soc::soc_repository::RepositoryError};
+use crate::{domain::{dto::contact_dto::{ReqCreateContactDto, ReqUpdateContactDto}, entities::{contact, contact_type, user_contact}, req_repository::contact_repository::{ContactRepositoryBase, ContactRepositoryUtility}}, soc::soc_repository::RepositoryError};
 
 
 
@@ -27,12 +27,16 @@ impl ContactRepositoryBase for ContactRepositoryImpl{
         &self, 
         user_id: Uuid, 
         dto: ReqCreateContactDto
-    ) 
-        -> Result<contact::Model, RepositoryError>
-    {
+    ) -> Result<contact::Model, RepositoryError> {
         // Execute the transaction
         let result = self.db_pool.transaction::<_, contact::Model, RepositoryError>(|txn| {
             Box::pin(async move {
+                // Validate and convert contact_type_id
+                let contact_type_id = Uuid::parse_str(&dto.contact_type_id)
+                    .map_err(|err| RepositoryError::InvalidInput(format!("Invalid contact_type_id: {}", err)))?
+                    .as_bytes()
+                    .to_vec();
+
                 // Create the ActiveModel for the contact
                 let new_contact = contact::ActiveModel {
                     id: Set(Uuid::new_v4().as_bytes().to_vec()), // Generate a new UUID for the contact
@@ -40,7 +44,7 @@ impl ContactRepositoryBase for ContactRepositoryImpl{
                     business_name: Set(dto.business_name),
                     phone: Set(dto.phone),
                     description: Set(dto.description),
-                    contact_type_id: Set(dto.contact_type_id.as_bytes().to_vec()), // Set the contact type ID
+                    contact_type_id: Set(contact_type_id), // Set the validated contact type ID
                     ..Default::default()
                 };
 
@@ -52,13 +56,12 @@ impl ContactRepositoryBase for ContactRepositoryImpl{
                         if let sea_orm::DbErr::Exec(exec_err) = &err {
                             if exec_err.to_string().contains("UNIQUE") {
                                 return RepositoryError::UniqueConstraintViolation(
-                                    "Contact with the same phone or business name already exists"
-                                        .to_string(),
-                                );
-                            }
+                                    "Contact with the same phone or business name already exists".to_string(),
+                            );
                         }
-                        RepositoryError::DatabaseError(err.to_string())
-                    })?;
+                    }
+                    RepositoryError::DatabaseError(err.to_string())
+                })?;
 
                 // Create the ActiveModel for the user_contact relationship
                 let new_user_contact = user_contact::ActiveModel {
@@ -187,7 +190,11 @@ impl ContactRepositoryBase for ContactRepositoryImpl{
             }
         }
         if let Some(contact_type_id) = dto.contact_type_id {
-            active_model.contact_type_id = Set(contact_type_id.as_bytes().to_vec());
+            let contact_type_id = Uuid::parse_str(&contact_type_id)
+                .map_err(|err| RepositoryError::InvalidInput(format!("Invalid contact_type_id: {}", err)))?
+                .as_bytes()
+                .to_vec();
+            active_model.contact_type_id = Set(contact_type_id);
         }
 
 
@@ -307,6 +314,11 @@ impl ContactRepositoryUtility for ContactRepositoryImpl{
         -> Result<Option<contact::Model>, RepositoryError>
     {
         // Query the database to find a contact by user_id and contact_type_id
+        let contact_type_id = Uuid::parse_str(&contact_id.to_string())
+            .map_err(|err| RepositoryError::InvalidInput(format!("Invalid contact_type_id: {}", err)))?
+            .as_bytes()
+            .to_vec();
+
         let contact = contact::Entity::find()
             .filter(
                 contact::Column::Id.in_subquery(
@@ -317,7 +329,7 @@ impl ContactRepositoryUtility for ContactRepositoryImpl{
                         .into_query(),
                 ),
             )
-            .filter(contact::Column::ContactTypeId.eq(contact_id.as_bytes().to_vec())) // Filter by contact type ID
+            .filter(contact::Column::ContactTypeId.eq(contact_type_id)) // Filter by contact type ID
             .one(self.db_pool.as_ref())
             .await
             .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
@@ -372,5 +384,19 @@ impl ContactRepositoryUtility for ContactRepositoryImpl{
 
         // Return the contact if found, or None if not found
         Ok(contact)
+    }
+
+    async fn find_contact_type_by_id(&self, user_id: Uuid, contact_type_id: Uuid) -> Result<Option<contact_type::Model>, RepositoryError>
+    {   
+        // Query the database to find the contact type by ID and ensure it belongs to the user
+        let contact_type = contact_type::Entity::find()
+            .filter(contact_type::Column::Id.eq(contact_type_id.as_bytes().to_vec())) // Filter by contact type ID
+            .filter(contact_type::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
+            .one(self.db_pool.as_ref())
+            .await
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+
+        // Return the contact type if found, or None if not found
+        Ok(contact_type)
     }
 }

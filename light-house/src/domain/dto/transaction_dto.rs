@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
+use rust_decimal::Decimal;
 
+use crate::implentation::decimal_utoipa::DecimalWrapper;
 
 
 // >>>>>>>> Payment <<<<<<<<
@@ -57,7 +59,6 @@ pub struct ResListPaymentDto{
 pub struct ReqCreateIncomeDto {
     #[validate(length(min = 1, message = "The transaction_type_id must not be empty"))]
     pub transaction_type_id: String,
-    #[validate(range(min = 0.1, message = "The amount must not be empty"))]
     pub amount: f64,
     #[validate(length(min = 1, message = "The aseet_id must not be empty"))]
     pub asset_id: String,

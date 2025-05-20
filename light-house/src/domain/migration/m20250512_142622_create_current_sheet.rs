@@ -37,7 +37,7 @@ impl MigrationTrait for Migration {
                     )
                     .col(
                         ColumnDef::new(CurrentSheet::Balance)
-                            .decimal()
+                            .decimal_len(10, 2)
                             .not_null(),
                     )
                     .col(

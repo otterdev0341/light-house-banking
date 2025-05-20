@@ -5,6 +5,7 @@ use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnectio
 use uuid::Uuid;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::*;
+use crate::domain::entities::{asset, contact, transaction_type};
 use crate::{
     domain::{dto::transaction_dto::{ReqCreateIncomeDto, ReqUpdateIncomeDto}, entities::transaction, req_repository::{balance_repository::BalanceRepositoryBase, transaction_repository::RecordIncomeRepositoryUtility}},
     infrastructure::database::mysql::impl_repository::balance_repo::BalanceRepositoryImpl,
@@ -37,22 +38,78 @@ impl RecordIncomeRepositoryUtility for IncomeRepositoryImpl {
     )
          -> Result<transaction::Model, RepositoryError>
     {
-        // Start a transaction
+        // validation fk 
+        // Check if the transaction type ID is valid
+        let transaction_type_id_binary = match Uuid::parse_str(&income_record_dto.transaction_type_id) {
+            Ok(uuid) => uuid.as_bytes().to_vec(),
+            Err(err) => {
+                log::error!("Invalid transaction_type_id: {}", err);
+                return Err(RepositoryError::InvalidInput("Invalid transaction_type_id".to_string()));
+            }
+        };
+        
+        let is_transaction_type_valid = transaction_type::Entity::find_by_id(transaction_type_id_binary.clone())
+            .one(self.db_pool.as_ref())
+            .await
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+        if is_transaction_type_valid.is_none() {
+            log::error!("Transaction type not found for ID: {}", income_record_dto.transaction_type_id);
+            return Err(RepositoryError::InvalidInput("Invalid transaction_type_id".to_string()));
+        }
+
+        // Check if the asset ID is valid
+        let asset_id_binary = match Uuid::parse_str(&income_record_dto.asset_id) {
+            Ok(uuid) => uuid.as_bytes().to_vec(),
+            Err(err) => {
+                log::error!("Invalid asset_type_id: {}", err);
+                return Err(RepositoryError::InvalidInput("Invalid transaction_type_id".to_string()));
+            }
+        };
+        
+        let is_asset_valid = asset::Entity::find_by_id(asset_id_binary.clone())
+            .one(self.db_pool.as_ref())
+            .await
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+        if is_asset_valid.is_none() {
+            log::error!("Asset not found for ID: {}", income_record_dto.asset_id);
+            return Err(RepositoryError::InvalidInput("Invalid asset_id".to_string()));
+        }
+        // Check if the contact ID is valid
+        let contact_id_binary = match Uuid::parse_str(&income_record_dto.contact_id) {
+            Ok(uuid) => uuid.as_bytes().to_vec(),
+            Err(err) => {
+                log::error!("Invalid contact_id: {}", err);
+                return Err(RepositoryError::InvalidInput("Invalid transaction_type_id".to_string()));
+            }
+        };
+        let is_contact_valid = contact::Entity::find_by_id(contact_id_binary.clone())
+            .one(self.db_pool.as_ref())
+            .await
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+        if is_contact_valid.is_none() && is_contact_valid.is_none() {
+            log::error!("Asset not found for ID: {}", income_record_dto.contact_id);
+            return Err(RepositoryError::InvalidInput("Invalid contact_id".to_string()));
+        }
+  
+
+
+        // 1: start transaction
         let txn = self.db_pool.begin().await.map_err(|err| {
             RepositoryError::DatabaseError(format!("Failed to start transaction: {}", err))
         })?;
 
+        // 2 initial balance repo to
         let balance_repo = BalanceRepositoryImpl {
             db_pool: Arc::clone(&self.db_pool),
         };
-
+        log::info!("Creating income record for user: {}", user_id);
         // Create the ActiveModel for the income record
         let new_income_record = transaction::ActiveModel {
             id: Set(Uuid::new_v4().as_bytes().to_vec()), // Generate a new UUID for the transaction
-            transaction_type_id: Set(income_record_dto.transaction_type_id.as_bytes().to_vec()),
+            transaction_type_id: Set(transaction_type_id_binary),
             amount: Set(income_record_dto.amount),
-            asset_id: Set(income_record_dto.asset_id.as_bytes().to_vec()),
-            contact_id: Set(Some(income_record_dto.contact_id.as_bytes().to_vec())),
+            asset_id: Set(asset_id_binary),
+            contact_id: Set(Some(contact_id_binary)),
             note: Set(income_record_dto.note),
             user_id: Set(user_id.as_bytes().to_vec()),
             ..Default::default()
@@ -82,9 +139,10 @@ impl RecordIncomeRepositoryUtility for IncomeRepositoryImpl {
         let current_sheet = match balance_repo
             .get_current_sheet_by_asset_id(user_id, asset_id_uuid)
             .await
-        {
+            {
             Ok(Some(sheet)) => sheet,
             Ok(None) => {
+                log::error!("Current sheet not found for asset ID: {}", asset_id_uuid);
                 txn.rollback().await.ok(); // Rollback on error
                 return Err(RepositoryError::NotFound(format!(
                     "Current sheet not found for asset {}",
@@ -92,14 +150,20 @@ impl RecordIncomeRepositoryUtility for IncomeRepositoryImpl {
                 )));
             }
             Err(err) => {
+                log::error!("Error fetching current sheet: {}", err);
                 txn.rollback().await.ok(); // Rollback on error
                 return Err(err);
             }
         };
 
-        let new_balance = match Decimal::from_f64(inserted_income_record.amount) {
-            Some(amount) => current_sheet.balance + amount,
+        let the_new_balance = match Decimal::from_f64(inserted_income_record.amount) {
+            Some(amount) => {
+                log::info!("Amount from dto to add: {}", amount);
+                log::info!("Amount from current table : {} + value from database {}", current_sheet.balance, amount);
+                amount + current_sheet.balance
+            },
             None => {
+                log::error!("Failed to convert amount to Decimal: {}", inserted_income_record.amount);
                 txn.rollback().await.ok(); // Rollback on error
                 return Err(RepositoryError::OperationFailed(
                     "Failed to convert amount to Decimal".to_string(),
@@ -107,16 +171,23 @@ impl RecordIncomeRepositoryUtility for IncomeRepositoryImpl {
             }
         };
 
+       
+
+        // Round the new balance to 2 decimal places
+        let rounded_balance = the_new_balance.round_dp(2);
+        log::info!("Rounded balance: {}", rounded_balance);
+
         if let Err(err) = balance_repo
-            .update_current_sheet(user_id, asset_id_uuid, Some(new_balance.to_f64().unwrap()))
+            .update_current_sheet(user_id, asset_id_uuid, Some(rounded_balance.to_f64().unwrap()))
             .await
         {
+            log::error!("Failed to update current sheet balance: {}", err);
             txn.rollback().await.ok(); // Rollback on error
             return Err(err);
         }
 
-        // Commit the transaction
         txn.commit().await.map_err(|err| {
+            log::error!("Failed to commit transaction: {}", err);
             RepositoryError::DatabaseError(format!("Failed to commit transaction: {}", err))
         })?;
 

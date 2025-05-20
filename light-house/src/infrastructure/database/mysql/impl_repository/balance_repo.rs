@@ -17,6 +17,7 @@ pub struct BalanceRepositoryImpl {
 
 #[async_trait::async_trait]
 impl BalanceRepositoryBase for BalanceRepositoryImpl {
+    
     async fn get_current_sheet_by_asset_id(
         &self,
         user_id: Uuid,

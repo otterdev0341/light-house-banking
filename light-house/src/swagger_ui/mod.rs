@@ -6,3 +6,6 @@ pub mod contact_type_api;
 pub mod contact_api;
 pub mod expense_type;
 pub mod expense_api;
+pub mod income_api;
+pub mod transaction_type_api;
+pub mod current_sheet_api;

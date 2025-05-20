@@ -1,6 +1,6 @@
 use rocket::fairing::AdHoc;
 
-use crate::infrastructure::http::http_handler::{asset_route::asset_routes, asset_type_route::asset_type_routes, contact_route::contact_routes, contact_type_route::contact_type_routes, expense_route::expense_routes, expense_type_route::expense_type_routes, user_route::user_routes};
+use crate::infrastructure::http::http_handler::{asset_route::asset_routes, asset_type_route::asset_type_routes, contact_route::contact_routes, contact_type_route::contact_type_routes, current_sheet_route::current_sheet_routes, expense_route::expense_routes, expense_type_route::expense_type_routes, transaction::{income_route::income_routes, transaction_type::transaction_type_routes}, user_route::user_routes};
 
 
 
@@ -15,5 +15,8 @@ pub fn init_handler_setup() -> AdHoc {
             .mount("/v1/contact", contact_routes())
             .mount("/v1/expense-type", expense_type_routes())
             .mount("/v1/expense", expense_routes())
+            .mount("/v1/income", income_routes())
+            .mount("/v1/transaction-type", transaction_type_routes())
+            .mount("/v1/current-sheet", current_sheet_routes())
     })
 }

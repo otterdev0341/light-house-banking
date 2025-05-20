@@ -55,93 +55,129 @@ where
     TT: TransactionTypeRepositoryUtility + Send + Sync,
 {
 
-    async fn create_income(&self, user_id: Uuid, income_dto: ReqCreateIncomeDto) -> Result<ResEntryIncomeDto, UsecaseError>
-    {   
+    async fn create_income(&self, user_id: Uuid, income_dto: ReqCreateIncomeDto) -> Result<ResEntryIncomeDto, UsecaseError> {
         // Step 1: Create the income record in the database
-    let income_created = match self.income_repo.create_income_record(user_id, income_dto).await {
-        Ok(income) => income,
-        Err(err) => return Err(UsecaseError::from(err)),
-    };
+        let income_created = match self.income_repo.create_income_record(user_id, income_dto).await {
+            Ok(income) => income,
+            Err(err) => return Err(UsecaseError::from(err)),
+        };
 
-    // Step 2: Fetch the transaction type name using the transaction_type_id
-    let transaction_type_name = match self
-        .transaction_type_repo
-        .get_transaction_type_by_id(
-            user_id,
-            Uuid::from_slice(&income_created.transaction_type_id).map_err(|e| {
-                UsecaseError::from(RepositoryError::from(sea_orm::DbErr::Custom(e.to_string())))
-            })?,
-        )
-        .await
-    {
-        Ok(Some(transaction_type)) => transaction_type.name,
-        Ok(None) => String::from("Unknown"),
-        Err(err) => return Err(UsecaseError::from(err)),
-    };
-
-    // Step 3: Fetch the asset name using the asset_id
-    let asset_name = match self
-        .asset_repo
-        .find_by_id(
-            user_id,
-            Uuid::from_slice(&income_created.asset_id).map_err(|e| {
-                UsecaseError::from(RepositoryError::from(sea_orm::DbErr::Custom(e.to_string())))
-            })?,
-        )
-        .await
-    {
-        Ok(Some(asset)) => asset.name,
-        Ok(None) => String::from("Unknown"),
-        Err(err) => return Err(UsecaseError::from(err)),
-    };
-
-    // Step 4: Fetch the contact name using the contact_id
-    let contact_name = match self
-        .contact_repo
-        .find_by_user_id_and_contact_id(
-            user_id,
-            Uuid::from_slice(
-                income_created
-                    .contact_id
-                    .as_deref()
-                    .ok_or_else(|| {
-                        UsecaseError::from(RepositoryError::InvalidInput(
-                            "fail to convert uuid".to_string(),
-                        ))
-                    })?,
+        log::debug!("Income record created: {:?}", income_created);
+        
+        // Step 2: Fetch the transaction type name using the transaction_type_id
+        let transaction_type_name = match self
+            .transaction_type_repo
+            .get_transaction_type_by_id(
+                user_id,
+                Uuid::from_slice(&income_created.transaction_type_id).map_err(|e| {
+                    log::error!("Failed to parse transaction_type_id: {}", e);
+                    UsecaseError::from(RepositoryError::from(sea_orm::DbErr::Custom(e.to_string())))
+                })?,
             )
-            .map_err(|e| {
-                UsecaseError::from(RepositoryError::from(sea_orm::DbErr::Custom(e.to_string())))
-            })?,
-        )
-        .await
-    {
-        Ok(Some(contact)) => contact.name,
-        Ok(None) => String::from("Unknown"),
-        Err(err) => return Err(UsecaseError::from(err)),
-    };
+            .await
+        {
+            Ok(Some(transaction_type)) => transaction_type.name,
+            Ok(None) => {
+                log::error!("Transaction type not found for ID: {:?}", income_created.transaction_type_id);
+                String::from("Unknown")
+            },
+            Err(err) => {
+                log::error!("Error fetching transaction type: {}", err);
+                return Err(UsecaseError::from(err));
+            }
+        };
 
-    // Step 5: Map the result to ResEntryIncomeDto
-    let res_entry = ResEntryIncomeDto {
-        id: String::from_utf8(income_created.id).map_err(|e| {
-            UsecaseError::from(RepositoryError::InvalidInput(e.to_string()))
-        })?,
-        transaction_type_name,
-        amount: income_created.amount,
-        asset_name,
-        contact_name,
-        note: income_created.note,
-        created_at: income_created
-            .created_at
-            .map_or_else(|| "Unknown".to_string(), |dt| dt.to_string()),
-        updated_at: income_created
-            .updated_at
-            .map_or_else(|| "Unknown".to_string(), |dt| dt.to_rfc3339()),
-    };
+        log::debug!("Transaction type name: {}", transaction_type_name);
 
-    // Step 6: Return the response object
-    Ok(res_entry)
+        // Step 3: Fetch the asset name using the asset_id
+        let asset_name = match self
+            .asset_repo
+            .find_by_id(
+                user_id,
+                Uuid::from_slice(&income_created.asset_id).map_err(|e| {
+                    log::error!("Failed to parse asset_id: {}", e);
+                    UsecaseError::from(RepositoryError::from(sea_orm::DbErr::Custom(e.to_string())))
+                })?,
+            )
+            .await
+        {
+            Ok(Some(asset)) => asset.name,
+            Ok(None) => {
+                log::error!("Asset not found for ID: {:?}", income_created.asset_id);
+                String::from("Unknown")
+            },
+            Err(err) => {
+                log::error!("Error fetching asset: {}", err);
+                return Err(UsecaseError::from(err));
+            }
+        };
+
+        log::debug!("Asset name: {}", asset_name);
+
+        // Step 4: Fetch the contact name using the contact_id
+        let contact_name = match self
+            .contact_repo
+            .find_by_user_id_and_contact_id(
+                user_id,
+                Uuid::from_slice(
+                    income_created
+                        .contact_id
+                        .as_deref()
+                        .ok_or_else(|| {
+                            UsecaseError::from(RepositoryError::InvalidInput(
+                                "Contact ID is missing".to_string(),
+                            ))
+                        })?,
+                )
+                .map_err(|e| {
+                    log::error!("Failed to parse contact_id: {}", e);
+                    UsecaseError::from(RepositoryError::from(sea_orm::DbErr::Custom(e.to_string())))
+                })?,
+            )
+            .await
+        {
+            Ok(Some(contact)) => contact.name,
+            Ok(None) => {
+                log::error!("Contact not found for ID: {:?}", income_created.contact_id);
+                String::from("Unknown")
+            },
+            Err(err) => {
+                log::error!("Error fetching contact: {}", err);
+                return Err(UsecaseError::from(err));
+            }
+        };
+
+        log::debug!("Contact name: {}", contact_name);
+
+        // Step 5: Map the result to ResEntryIncomeDto
+        let res_entry = ResEntryIncomeDto {
+            id: match Uuid::from_slice(&income_created.id) {
+                Ok(uuid) => uuid.to_string(),
+                Err(err) => {
+                    log::error!("Failed to parse income ID as UUID: {}", err);
+                    return Err(UsecaseError::Unexpected("Invalid income ID".to_string()));
+                }
+            },
+            transaction_type_name,
+            amount: income_created.amount,
+            asset_name,
+            contact_name,
+            note: income_created.note,
+            created_at: income_created
+                .created_at
+                .map_or_else(|| "Unknown".to_string(), |dt| dt.to_string()),
+            updated_at: income_created
+                .updated_at
+                .map_or_else(|| "Unknown".to_string(), |dt| dt.to_rfc3339()),
+        };
+        log::info!("Amount in IncomeUseCase: {}", res_entry.amount);
+        log::debug!("Response DTO: {:?}", res_entry);
+
+        // Step 6: Return the response object
+        Ok(res_entry)
     }
+
+
 
     async fn get_income(&self, user_id: Uuid , transaction_id: Uuid) -> Result<Option<ResEntryIncomeDto>, UsecaseError>
     {   
@@ -353,6 +389,9 @@ let contact_name = match self
     }
     }
 
+
+
+    
     async fn get_all_income(&self, user_id: Uuid) -> Result<ResListIncomeDto, UsecaseError>
     {   
          // Step 1: Fetch all income records for the user from the repository

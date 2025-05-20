@@ -7,3 +7,4 @@ pub mod contact_type_usecase;
 pub mod contact_usecase;
 pub mod transaction_usecase;
 pub mod current_sheet_usecase;
+pub mod transaction_type_usecase;

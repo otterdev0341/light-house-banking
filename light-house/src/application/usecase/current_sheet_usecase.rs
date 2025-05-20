@@ -197,9 +197,10 @@ where
 
             // Map the current sheet record to ResCurrentSheetDto
             let res_entry = ResCurrentSheetDto {
-                id: String::from_utf8(sheet.id).map_err(|e| {
-                    UsecaseError::from(RepositoryError::InvalidInput(e.to_string()))
-                })?,
+                id: match Uuid::from_slice(&sheet.id) {
+                    Ok(id) => id.to_string(),
+                    Err(_) => return Err(UsecaseError::from(RepositoryError::InvalidInput("Invalid ID".to_string()))),
+                },
                 asset_name,
                 balance: sheet.balance.to_f64().ok_or_else(|| {
                     UsecaseError::from(RepositoryError::InvalidInput(

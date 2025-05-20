@@ -10,3 +10,4 @@ pub mod transaction;
 pub mod balance_repo;
 pub mod role_repo;
 pub mod gender_repo;
+pub mod transaction_type_repo;

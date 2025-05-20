@@ -99,29 +99,24 @@ impl AssetRepositoryBase for AssetRepositoryImpl{
         &self, 
         user_id: Uuid, 
         asset_id: Uuid
-    ) 
-        -> Result<Option<asset::Model>, RepositoryError>
-    {
+    ) -> Result<Option<asset::Model>, RepositoryError> {
         log::debug!(
             "Fetching asset with ID: {:?} for user ID: {:?}",
             asset_id,
             user_id
         );
-    
-        // Validate input
+
         if asset_id.is_nil() || user_id.is_nil() {
             return Err(RepositoryError::InvalidInput("Invalid asset_id or user_id".to_string()));
         }
-    
-        // Query the database to find the asset by ID and ensure it belongs to the user
+
         let asset = asset::Entity::find()
-            .filter(asset::Column::Id.eq(asset_id.as_bytes().to_vec())) // Use asset_id instead of asset_type_id
-            .filter(asset::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
+            .filter(asset::Column::Id.eq(asset_id.as_bytes().to_vec()))
+            .filter(asset::Column::UserId.eq(user_id.as_bytes().to_vec()))
             .one(self.db_pool.as_ref())
             .await
             .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
-    
-        // Return the asset if found, or None if not found
+
         Ok(asset)
     }
 

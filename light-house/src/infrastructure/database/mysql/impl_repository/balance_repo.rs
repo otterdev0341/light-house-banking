@@ -143,7 +143,25 @@ impl BalanceRepositoryBase for BalanceRepositoryImpl {
 
         Ok(())
     }
-}
+
+    async fn get_current_sheet_by_id(&self, user_id: Uuid, current_sheet_id: Uuid) -> Result<Option<current_sheet::Model>, RepositoryError>
+    {
+        // Query the database to find the current sheet by ID and ensure it belongs to the user
+        let current_sheet = current_sheet::Entity::find()
+            .filter(current_sheet::Column::Id.eq(current_sheet_id.as_bytes().to_vec()))
+            .filter(current_sheet::Column::UserId.eq(user_id.as_bytes().to_vec()))
+            .one(self.db_pool.as_ref())
+            .await
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+        log::info!("current_sheet: {:?}", current_sheet);
+        if current_sheet.is_none() {
+            log::info!("current_sheet is not found : transaction_id {}, user_id{}", current_sheet_id, user_id);
+            
+        }
+        Ok(current_sheet)
+    }
+
+}// end base
 
 
 #[async_trait::async_trait]

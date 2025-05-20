@@ -44,7 +44,7 @@ where
          // Step 1: Fetch the current sheet record by user_id and current_sheet_id from the balance repository
     let current_sheet = match self
     .balance_repo
-    .get_current_sheet_by_asset_id(user_id, current_sheet_id)
+    .get_current_sheet_by_id(user_id, current_sheet_id)
     .await
     {
         Ok(Some(sheet)) => sheet,

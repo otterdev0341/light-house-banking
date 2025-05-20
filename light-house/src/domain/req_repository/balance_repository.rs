@@ -14,6 +14,7 @@ pub trait BalanceRepositoryBase {
     async fn create_current_sheet(&self, user_id: Uuid, asset_id: Uuid, initial_balance: f64) -> Result<current_sheet::Model, RepositoryError>;
     async fn update_current_sheet(&self, user_id: Uuid, asset_id: Uuid, balance: Option<f64>) -> Result<current_sheet::Model, RepositoryError>;
     async fn delete_current_sheet_by_asset_id(&self, user_id: Uuid, asset_id: Uuid) -> Result<(), RepositoryError>;
+    async fn get_current_sheet_by_id(&self, user_id: Uuid, current_sheet_id: Uuid) -> Result<Option<current_sheet::Model>, RepositoryError>;
 }
 
 #[async_trait::async_trait]

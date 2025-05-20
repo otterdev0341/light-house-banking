@@ -57,6 +57,10 @@ impl BalanceRepositoryBase for CurrentSheetRepositoryComposite {
     {
         self.balance_repository.delete_current_sheet_by_asset_id(user_id, asset_id).await
     }
+    async fn get_current_sheet_by_id(&self, user_id: Uuid, current_sheet_id: Uuid) -> Result<Option<current_sheet::Model>, RepositoryError>
+    {
+        self.balance_repository.get_current_sheet_by_id(user_id, current_sheet_id).await
+    }
 }
 
 #[async_trait::async_trait]

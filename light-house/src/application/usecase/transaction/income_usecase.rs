@@ -179,93 +179,90 @@ where
 
 
 
-    async fn get_income(&self, user_id: Uuid , transaction_id: Uuid) -> Result<Option<ResEntryIncomeDto>, UsecaseError>
-    {   
-        // Step 1: Fetch the income record by user_id and transaction_id from the repository
-    let income = match self.income_repo.get_income_record_by_id(user_id, transaction_id).await {
-        Ok(Some(income)) => {
-            // Step 2: Fetch the transaction type name using the transaction_type_id
-            let transaction_type_name = match self
-                .transaction_type_repo
-                .get_transaction_type_by_id(
-                    user_id,
-                    Uuid::from_slice(&income.transaction_type_id).map_err(|e| {
-                        UsecaseError::from(RepositoryError::from(sea_orm::DbErr::Custom(e.to_string())))
-                    })?,
-                )
-                .await
-            {
-                Ok(Some(transaction_type)) => transaction_type.name,
-                Ok(None) => String::from("Unknown"),
-                Err(err) => return Err(UsecaseError::from(err)),
-            };
-
-            // Step 3: Fetch the asset name using the asset_id
-            let asset_name = match self
-                .asset_repo
-                .find_by_id(
-                    user_id,
-                    Uuid::from_slice(&income.asset_id).map_err(|e| {
-                        UsecaseError::from(RepositoryError::from(sea_orm::DbErr::Custom(e.to_string())))
-                    })?,
-                )
-                .await
-            {
-                Ok(Some(asset)) => asset.name,
-                Ok(None) => String::from("Unknown"),
-                Err(err) => return Err(UsecaseError::from(err)),
-            };
-
-            // Step 4: Fetch the contact name using the contact_id
-            let contact_name = match self
-                .contact_repo
-                .find_by_user_id_and_contact_id(
-                    user_id,
-                    Uuid::from_slice(
-                        income
-                            .contact_id
-                            .as_deref()
-                            .ok_or_else(|| {
-                                UsecaseError::from(RepositoryError::InvalidInput(
-                                    "fail to convert uuid".to_string(),
-                                ))
-                            })?,
+    async fn get_income(&self, user_id: Uuid, transaction_id: Uuid) -> Result<Option<ResEntryIncomeDto>, UsecaseError> {
+        let income = match self.income_repo.get_income_record_by_id(user_id, transaction_id).await {
+            Ok(Some(income)) => {
+                let transaction_type_name = match self
+                    .transaction_type_repo
+                    .get_transaction_type_by_id(
+                        user_id,
+                        Uuid::from_slice(&income.transaction_type_id).map_err(|e| {
+                            UsecaseError::from(RepositoryError::from(sea_orm::DbErr::Custom(e.to_string())))
+                        })?,
                     )
-                    .map_err(|e| {
-                        UsecaseError::from(RepositoryError::from(sea_orm::DbErr::Custom(e.to_string())))
-                    })?,
-                )
-                .await
-            {
-                Ok(Some(contact)) => contact.name,
-                Ok(None) => String::from("Unknown"),
-                Err(err) => return Err(UsecaseError::from(err)),
-            };
+                    .await
+                {
+                    Ok(Some(transaction_type)) => transaction_type.name,
+                    Ok(None) => String::from("Unknown"),
+                    Err(err) => return Err(UsecaseError::from(err)),
+                };
 
-            // Step 5: Map the result to ResEntryIncomeDto
-            Some(ResEntryIncomeDto {
-                id: String::from_utf8(income.id).map_err(|e| {
-                    UsecaseError::from(RepositoryError::InvalidInput(e.to_string()))
-                })?,
-                transaction_type_name,
-                amount: income.amount,
-                asset_name,
-                contact_name,
-                note: income.note,
-                created_at: income
-                    .created_at
-                    .map_or_else(|| "Unknown".to_string(), |dt| dt.to_string()),
-                updated_at: income
-                    .updated_at
-                    .map_or_else(|| "Unknown".to_string(), |dt| dt.to_rfc3339()),
-            })
-        }
-        Ok(None) => return Ok(None), // Income record not found
-        Err(err) => return Err(UsecaseError::from(err)), // Handle repository errors
-    };
+                let asset_name = match self
+                    .asset_repo
+                    .find_by_id(
+                        user_id,
+                        Uuid::from_slice(&income.asset_id).map_err(|e| {
+                            UsecaseError::from(RepositoryError::from(sea_orm::DbErr::Custom(e.to_string())))
+                        })?,
+                    )
+                    .await
+                {
+                    Ok(Some(asset)) => asset.name,
+                    Ok(None) => String::from("Unknown"),
+                    Err(err) => return Err(UsecaseError::from(err)),
+                };
 
-    // Step 6: Return the mapped income details
-    Ok(income)
+                let contact_name = match self
+                    .contact_repo
+                    .find_by_user_id_and_contact_id(
+                        user_id,
+                        Uuid::from_slice(
+                            income
+                                .contact_id
+                                .as_deref()
+                                .ok_or_else(|| {
+                                    UsecaseError::from(RepositoryError::InvalidInput(
+                                        "fail to convert uuid".to_string(),
+                                    ))
+                                })?,
+                        )
+                        .map_err(|e| {
+                            UsecaseError::from(RepositoryError::from(sea_orm::DbErr::Custom(e.to_string())))
+                        })?,
+                    )
+                    .await
+                {
+                    Ok(Some(contact)) => contact.name,
+                    Ok(None) => String::from("Unknown"),
+                    Err(err) => return Err(UsecaseError::from(err)),
+                };
+
+                Some(ResEntryIncomeDto {
+                    id: match Uuid::from_slice(&income.id) {
+                        Ok(uuid) => uuid.to_string(),
+                        Err(err) => {
+                            log::error!("Failed to parse income ID as UUID: {}", err);
+                            return Err(UsecaseError::Unexpected("Invalid income ID".to_string()));
+                        }
+                    },
+                    transaction_type_name,
+                    amount: income.amount,
+                    asset_name,
+                    contact_name,
+                    note: income.note,
+                    created_at: income
+                        .created_at
+                        .map_or_else(|| "Unknown".to_string(), |dt| dt.to_string()),
+                    updated_at: income
+                        .updated_at
+                        .map_or_else(|| "Unknown".to_string(), |dt| dt.to_rfc3339()),
+                })
+            }
+            Ok(None) => return Ok(None),
+            Err(err) => return Err(UsecaseError::from(err)),
+        };
+
+        Ok(income)
     }
 
     async fn update_income(&self, user_id: Uuid,  transaction_id: Uuid, income_dto: ReqUpdateIncomeDto) -> Result<ResEntryIncomeDto, UsecaseError>

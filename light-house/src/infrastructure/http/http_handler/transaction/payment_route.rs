@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use chrono::format;
 use rocket::{delete, get, http::Status, post, put, routes, serde::json::Json, Route, State};
 use uuid::Uuid;
 use validator::Validate;

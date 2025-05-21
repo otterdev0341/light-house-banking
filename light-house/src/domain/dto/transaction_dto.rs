@@ -1,9 +1,6 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
-use rust_decimal::Decimal;
-
-use crate::implentation::decimal_utoipa::DecimalWrapper;
 
 
 // >>>>>>>> Payment <<<<<<<<

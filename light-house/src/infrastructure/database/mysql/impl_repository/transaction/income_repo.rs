@@ -272,7 +272,7 @@ impl RecordIncomeRepositoryUtility for IncomeRepositoryImpl {
         if let Some(amount) = income_record_dto.amount {
             active_model.amount = Set(amount);
         }
-        if let Some(asset_id) = income_record_dto.asset_id {
+        if let Some(_asset_id) = income_record_dto.asset_id {
             active_model.asset_id = Set(new_asset_id_binary.clone());
         }
         if let Some(contact_id) = income_record_dto.contact_id {

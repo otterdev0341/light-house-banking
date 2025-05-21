@@ -5,7 +5,7 @@ use rust_decimal::prelude::*;
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, TransactionTrait};
 use uuid::Uuid;
 
-use crate::{domain::{dto::transaction_dto::{ReqCreatePaymentDto, ReqUpdatePaymentDto}, entities::transaction, req_repository::{balance_repository::BalanceRepositoryBase, transaction_repository::RecordPaymentRepositoryUtility}}, infrastructure::database::mysql::impl_repository::balance_repo::BalanceRepositoryImpl, soc::soc_repository::RepositoryError};
+use crate::{domain::{dto::transaction_dto::{ReqCreatePaymentDto, ReqUpdatePaymentDto}, entities::{asset, contact, expense, transaction, transaction_type}, req_repository::{balance_repository::BalanceRepositoryBase, transaction_repository::RecordPaymentRepositoryUtility}}, infrastructure::database::mysql::impl_repository::balance_repo::BalanceRepositoryImpl, soc::soc_repository::RepositoryError};
 
 
 
@@ -33,32 +33,132 @@ impl RecordPaymentRepositoryUtility for PaymentRepositoryImpl {
     ) 
         -> Result<transaction::Model, RepositoryError>
     {
-        
+        log::info!("Starting create_payment_record for user_id: {}", user_id);
+
         // Start a transaction
+        log::debug!("Starting database transaction...");
         let txn = self.db_pool.begin().await.map_err(|err| {
+            log::error!("Failed to start transaction: {}", err);
             RepositoryError::DatabaseError(format!("Failed to start transaction: {}", err))
         })?;
 
-        let balance_repo = BalanceRepositoryImpl {
-            db_pool: Arc::clone(&self.db_pool),
+        // Validate transaction_type_id
+        log::debug!("Validating transaction_type_id: {}", payment_record_dto.transaction_type_id);
+        let transaction_type_id_binary = match Uuid::parse_str(&payment_record_dto.transaction_type_id) {
+            Ok(uuid) => uuid.as_bytes().to_vec(),
+            Err(err) => {
+                log::error!("Invalid transaction_type_id: {}", err);
+                return Err(RepositoryError::InvalidInput("Invalid transaction_type_id".to_string()));
+            }
+        };
+        
+        let is_transaction_type_valid = transaction_type::Entity::find_by_id(transaction_type_id_binary.clone())
+            .one(self.db_pool.as_ref())
+            .await
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+        if is_transaction_type_valid.is_none() {
+            log::error!("Transaction type not found for ID: {}", payment_record_dto.transaction_type_id);
+            return Err(RepositoryError::InvalidInput("Invalid transaction_type_id".to_string()));
+        }
+
+        // Validate expense_id
+        log::debug!("Validating expense_id: {}", payment_record_dto.expense_id);
+        let expense_id_binary = match Uuid::parse_str(&payment_record_dto.expense_id) {
+            Ok(uuid) => uuid.as_bytes().to_vec(),
+            Err(e) => {
+                log::error!("Invalid expense_id: {}", e);
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::OperationFailed(format!(
+                    "Invalid expense UUID: {}",
+                    e
+                )));
+            }
         };
 
+        let is_expense_valid = expense::Entity::find_by_id(expense_id_binary.clone())
+            .one(self.db_pool.as_ref())
+            .await
+            .map_err(|err| {
+                log::error!("Error querying expense_id: {}", err);
+                RepositoryError::DatabaseError(err.to_string())
+            })?;
+        if is_expense_valid.is_none() {
+            log::error!("Expense not found for ID: {}", payment_record_dto.expense_id);
+            return Err(RepositoryError::InvalidInput("Invalid expense id".to_string()));
+        }
+
+        // Validate asset_id
+        log::debug!("Validating asset_id: {}", payment_record_dto.asset_id);
+        let asset_id_binary = match Uuid::parse_str(&payment_record_dto.asset_id) {
+            Ok(uuid) => uuid.as_bytes().to_vec(),
+            Err(e) => {
+                log::error!("Invalid asset_id: {}", e);
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::OperationFailed(format!(
+                    "Invalid asset UUID: {}",
+                    e
+                )));
+            }
+        };
+
+        let is_asset_valid = asset::Entity::find_by_id(asset_id_binary.clone())
+            .one(self.db_pool.as_ref())
+            .await
+            .map_err(|err| {
+                log::error!("Error querying asset_id: {}", err);
+                RepositoryError::DatabaseError(err.to_string())
+            })?;
+        if is_asset_valid.is_none() {
+            log::error!("Asset not found for ID: {}", payment_record_dto.asset_id);
+            return Err(RepositoryError::InvalidInput("Invalid asset id".to_string()));
+        }
+
+        // Validate contact_id
+        log::debug!("Validating contact_id: {}", payment_record_dto.contact_id);
+        let contact_id_binary = match Uuid::parse_str(&payment_record_dto.contact_id) {
+            Ok(uuid) => uuid.as_bytes().to_vec(),
+            Err(e) => {
+                log::error!("Invalid contact_id: {}", e);
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::OperationFailed(format!(
+                    "Invalid contact UUID: {}",
+                    e
+                )));
+            }
+        };
+
+        let is_contact_valid = contact::Entity::find_by_id(contact_id_binary.clone())
+            .one(self.db_pool.as_ref())
+            .await
+            .map_err(|err| {
+                log::error!("Error querying contact_id: {}", err);
+                RepositoryError::DatabaseError(err.to_string())
+            })?;
+        if is_contact_valid.is_none() {
+            log::error!("Contact not found for ID: {}", payment_record_dto.contact_id);
+            return Err(RepositoryError::InvalidInput("Invalid contact id".to_string()));
+        }
+
         // Create the ActiveModel for the payment record
+        log::debug!("Creating ActiveModel for payment record...");
         let new_payment_record = transaction::ActiveModel {
             id: Set(Uuid::new_v4().as_bytes().to_vec()), // Generate a new UUID for the transaction
-            transaction_type_id: Set(payment_record_dto.transaction_type_id.as_bytes().to_vec()),
+            transaction_type_id: Set(transaction_type_id_binary),
             amount: Set(payment_record_dto.amount),
-            expense_id: Set(Some(payment_record_dto.expense_id.as_bytes().to_vec())),
-            contact_id: Set(Some(payment_record_dto.contact_id.as_bytes().to_vec())),
+            expense_id: Set(Some(expense_id_binary)),
+            asset_id: Set(asset_id_binary),
+            contact_id: Set(Some(contact_id_binary)),
             note: Set(payment_record_dto.note),
             user_id: Set(user_id.as_bytes().to_vec()),
             ..Default::default()
         };
 
         // Insert the payment record into the database
+        log::debug!("Inserting payment record into the database...");
         let inserted_payment_record = match new_payment_record.insert(&txn).await {
             Ok(record) => record,
             Err(err) => {
+                log::error!("Failed to insert payment record: {}", err);
                 txn.rollback().await.ok(); // Rollback on error
                 if let sea_orm::DbErr::Exec(exec_err) = &err {
                     if exec_err.to_string().contains("FOREIGN KEY") {
@@ -72,9 +172,11 @@ impl RecordPaymentRepositoryUtility for PaymentRepositoryImpl {
         };
 
         // Update the balance in the CurrentSheet table
+        log::debug!("Updating balance in the CurrentSheet table...");
         let asset_id_uuid = match Uuid::from_slice(&inserted_payment_record.asset_id) {
             Ok(uuid) => uuid,
             Err(e) => {
+                log::error!("Invalid asset UUID: {}", e);
                 txn.rollback().await.ok(); // Rollback on error
                 return Err(RepositoryError::OperationFailed(format!(
                     "Invalid asset UUID: {}",
@@ -82,13 +184,16 @@ impl RecordPaymentRepositoryUtility for PaymentRepositoryImpl {
                 )));
             }
         };
-
+        let balance_repo = BalanceRepositoryImpl {
+            db_pool: Arc::clone(&self.db_pool),
+        };
         let current_sheet = match balance_repo
             .get_current_sheet_by_asset_id(user_id, asset_id_uuid)
             .await
         {
             Ok(Some(sheet)) => sheet,
             Ok(None) => {
+                log::error!("Current sheet not found for asset ID: {}", asset_id_uuid);
                 txn.rollback().await.ok(); // Rollback on error
                 return Err(RepositoryError::NotFound(format!(
                     "Current sheet not found for asset {}",
@@ -96,6 +201,7 @@ impl RecordPaymentRepositoryUtility for PaymentRepositoryImpl {
                 )));
             }
             Err(err) => {
+                log::error!("Error fetching current sheet: {}", err);
                 txn.rollback().await.ok(); // Rollback on error
                 return Err(err);
             }
@@ -104,6 +210,7 @@ impl RecordPaymentRepositoryUtility for PaymentRepositoryImpl {
         let new_balance = match Decimal::from_f64(inserted_payment_record.amount) {
             Some(amount) => current_sheet.balance - amount,
             None => {
+                log::error!("Failed to convert amount to Decimal: {}", inserted_payment_record.amount);
                 txn.rollback().await.ok(); // Rollback on error
                 return Err(RepositoryError::OperationFailed(
                     "Failed to convert amount to Decimal".to_string(),
@@ -111,19 +218,25 @@ impl RecordPaymentRepositoryUtility for PaymentRepositoryImpl {
             }
         };
 
+        log::debug!("New balance calculated: {}", new_balance);
+
         if let Err(err) = balance_repo
             .update_current_sheet(user_id, asset_id_uuid, Some(new_balance.to_f64().unwrap()))
             .await
         {
+            log::error!("Failed to update balance in CurrentSheet table: {}", err);
             txn.rollback().await.ok(); // Rollback on error
             return Err(err);
         }
 
         // Commit the transaction
+        log::debug!("Committing transaction...");
         txn.commit().await.map_err(|err| {
+            log::error!("Failed to commit transaction: {}", err);
             RepositoryError::DatabaseError(format!("Failed to commit transaction: {}", err))
         })?;
 
+        log::info!("Payment record created successfully for user_id: {}", user_id);
         Ok(inserted_payment_record)
     }
 

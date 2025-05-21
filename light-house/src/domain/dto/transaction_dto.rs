@@ -16,6 +16,8 @@ pub struct ReqCreatePaymentDto {
     pub amount: f64,
     #[validate(length(min = 1, message = "The expense_id must not be empty"))]
     pub expense_id: String,
+    #[validate(length(min = 1, message = "The asset_id must not be empty"))]
+    pub asset_id: String,
     #[validate(length(min = 1, message = "The contact_id must not be empty"))]
     pub contact_id: String,
     #[validate(length(min = 1, message = "The note must not be empty"))]
@@ -29,6 +31,7 @@ pub struct ReqUpdatePaymentDto {
     pub transaction_type_id: Option<String>,
     pub amount: Option<f64>,
     pub expense_id: Option<String>,
+    pub asset_id: Option<String>,
     pub contact_id: Option<String>,
     pub note: Option<String>,
 }
@@ -41,6 +44,7 @@ pub struct ResEntryPaymentDto{
     pub amount: f64,
     pub expense_name: String,
     pub contact_name: String,
+    pub asset_name: String,
     pub note: String,
     pub created_at: String,
     pub updated_at: String,

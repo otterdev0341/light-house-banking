@@ -130,9 +130,10 @@ where
 
     // Step 5: Map the result to ResEntryPaymentDto
     let res_entry = ResEntryPaymentDto {
-        id: String::from_utf8(payment_created.id).map_err(|e| {
-            UsecaseError::from(RepositoryError::InvalidInput(e.to_string()))
-        })?,
+        id: match Uuid::from_slice(&payment_created.id) {
+            Ok(id) => id.to_string(),
+            Err(_) => "Unknown".to_string(),
+        },
         transaction_type_name,
         amount: payment_created.amount,
         expense_name,
@@ -227,9 +228,10 @@ where
 
             // Step 5: Map the result to ResEntryPaymentDto
             Some(ResEntryPaymentDto {
-                id: String::from_utf8(payment.id).map_err(|e| {
-                    UsecaseError::from(RepositoryError::InvalidInput(e.to_string()))
-                })?,
+                id: match Uuid::from_slice(&payment.id) {
+                    Ok(id) => id.to_string(),
+                    Err(_) => "Unknown".to_string(),
+                },
                 transaction_type_name,
                 amount: payment.amount,
                 expense_name,
@@ -333,9 +335,10 @@ where
 
     // Step 5: Map the result to ResEntryPaymentDto
     let res_entry = ResEntryPaymentDto {
-        id: String::from_utf8(updated_payment.id).map_err(|e| {
-            UsecaseError::from(RepositoryError::InvalidInput(e.to_string()))
-        })?,
+        id: match Uuid::from_slice(&updated_payment.id) {
+            Ok(id) => id.to_string(),
+            Err(_) => "Unknown".to_string(),
+        },
         transaction_type_name,
         amount: updated_payment.amount,
         expense_name,
@@ -463,9 +466,10 @@ where
 
         // Map the payment record to ResEntryPaymentDto
         let res_entry = ResEntryPaymentDto {
-            id: String::from_utf8(payment.id).map_err(|e| {
-                UsecaseError::from(RepositoryError::InvalidInput(e.to_string()))
-            })?,
+            id: match Uuid::from_slice(&payment.id) {
+                Ok(id) => id.to_string(),
+                Err(_) => "Unknown".to_string(),
+            },
             transaction_type_name,
             amount: payment.amount,
             expense_name,

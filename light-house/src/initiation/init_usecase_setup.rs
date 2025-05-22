@@ -3,7 +3,7 @@ use std::sync::Arc;
 use rocket::fairing::AdHoc;
 use sea_orm::DatabaseConnection;
 
-use crate::{application::usecase::{asset_type_usecase::AssetTypeUseCase, asset_usecase::AssetUseCase, contact_type_usecase::ContactTypeUseCase, contact_usecase::ContactUseCase, current_sheet_usecase::CurrentUseCase, expense_type_usecase::ExpenseTypeUseCase, expense_usecase::ExpenseUseCase, transaction::{income_usecase::{self}, payment_usecase::PaymentUseCase, transaction_type_usecase::TransactionTypeUseCase}, user_usecase::UserUseCase, wrapper::{income_wrapper::IncomeRepositoryComposite, payment_wrapper::PaymentRepositoryComposite, transfer_wrapper::TransferRepositoryComposite, user_wrapper::UserRepositoryComposite}}, infrastructure::database::mysql::impl_repository::{asset_repo::AssetRepositoryImpl, asset_type_repo::AssetTypeRepositoryImpl, auth_repo::AuthRepositoryImpl, balance_repo::BalanceRepositoryImpl, contact_repo::ContactRepositoryImpl, contact_type_repo::ContactTypeRepositoryImpl, expense_repo::ExpenseRepositoryImpl, expense_type_repos::ExpenseTypeRepositoryImpl, gender_repo::GenderRepositoryImpl, role_repo::RoleManagementRepositoryImpl, transaction::{income_repo::IncomeRepositoryImpl, payment_repo::PaymentRepositoryImpl, transfer_repo::TransferRepositoryImpl}, transaction_type_repo::TransactionTypeRepositoryImpl, user_repo::UserRepositoryImpl}};
+use crate::{application::usecase::{asset_type_usecase::AssetTypeUseCase, asset_usecase::AssetUseCase, contact_type_usecase::ContactTypeUseCase, contact_usecase::ContactUseCase, current_sheet_usecase::CurrentUseCase, expense_type_usecase::ExpenseTypeUseCase, expense_usecase::ExpenseUseCase, transaction::{income_usecase::{self}, payment_usecase::PaymentUseCase, transaction_type_usecase::TransactionTypeUseCase, transfer_usecase::TransferUseCase}, user_usecase::UserUseCase, wrapper::{income_wrapper::IncomeRepositoryComposite, payment_wrapper::PaymentRepositoryComposite, transfer_wrapper::TransferRepositoryComposite, user_wrapper::UserRepositoryComposite}}, infrastructure::database::mysql::impl_repository::{asset_repo::AssetRepositoryImpl, asset_type_repo::AssetTypeRepositoryImpl, auth_repo::AuthRepositoryImpl, balance_repo::BalanceRepositoryImpl, contact_repo::ContactRepositoryImpl, contact_type_repo::ContactTypeRepositoryImpl, expense_repo::ExpenseRepositoryImpl, expense_type_repos::ExpenseTypeRepositoryImpl, gender_repo::GenderRepositoryImpl, role_repo::RoleManagementRepositoryImpl, transaction::{income_repo::IncomeRepositoryImpl, payment_repo::PaymentRepositoryImpl, transfer_repo::TransferRepositoryImpl}, transaction_type_repo::TransactionTypeRepositoryImpl, user_repo::UserRepositoryImpl}};
 
 
 
@@ -80,9 +80,7 @@ pub fn init_usecase_setup(db_connection: Arc<DatabaseConnection>) -> AdHoc {
         let transaction_type_usecase = Arc::new(TransactionTypeUseCase::new(Arc::new(transaction_type_repository)));
 
         // tranfer repository && transaction usecase
-        let the_transfer_repository = Arc::new(TransferRepositoryImpl{
-            db_pool: Arc::clone(&db_connection),
-        });
+
         let the_asset_repository = Arc::new(AssetRepositoryImpl{
             db_pool: Arc::clone(&db_connection),
         });
@@ -98,14 +96,7 @@ pub fn init_usecase_setup(db_connection: Arc<DatabaseConnection>) -> AdHoc {
         let the_contact_repository = Arc::new(ContactRepositoryImpl{
             db_pool: Arc::clone(&db_connection),
         });
-        let tranfer_composite = Arc::new(TransferRepositoryComposite {
-            transfer_repository: the_transfer_repository,
-            asset_repository: the_asset_repository.clone(),
-            asset_type_repository: the_asset_type_repository.clone(),
-            expense_repository: the_expense_repository,
-            expense_type_repository: the_expense_type_repository,
-            contact_repository: the_contact_repository.clone(),
-        });
+       
 
         // income repository && income usecase
         let the_income_repository = Arc::new(IncomeRepositoryImpl{
@@ -153,6 +144,26 @@ pub fn init_usecase_setup(db_connection: Arc<DatabaseConnection>) -> AdHoc {
             the_contact_repository.clone(),
             transaction_type_repository.clone(),
         ));
+
+        // tranfer usecase
+        let the_transfer_repository = Arc::new(TransferRepositoryImpl{
+            db_pool: Arc::clone(&db_connection),
+        });
+        let tranfer_composite = Arc::new(TransferRepositoryComposite {
+            transfer_repository: the_transfer_repository,
+            asset_repository: the_asset_repository.clone(),
+            asset_type_repository: the_asset_type_repository.clone(),
+            expense_repository: the_expense_repository,
+            expense_type_repository: the_expense_type_repository,
+            contact_repository: the_contact_repository.clone(),
+        });
+        let transfer_usecase = Arc::new(TransferUseCase::new(
+            tranfer_composite.clone(),
+            the_asset_repository.clone(),
+            the_contact_repository.clone(),
+            transaction_type_repository.clone(),
+        ));
+
         // >>>>>  Manage the usecase and database connection in Rocket's state <<<<<
         rocket
             .manage(Arc::clone(&db_connection)) // Manage the database connection
@@ -168,5 +179,6 @@ pub fn init_usecase_setup(db_connection: Arc<DatabaseConnection>) -> AdHoc {
             .manage(income_usecase)
             .manage(payment_usecase)
             .manage(current_usecase)
+            .manage(transfer_usecase)
     })      
 }

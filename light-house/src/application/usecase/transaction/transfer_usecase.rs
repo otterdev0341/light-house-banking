@@ -130,7 +130,10 @@ where
 
     // Step 6: Map the result to ResEntryTransferDto
     let res_entry = ResEntryTransferDto {
-        id: String::from_utf8(transfer_created.id).map_err(|e| UsecaseError::from(RepositoryError::InvalidInput(e.to_string())))?,
+        id: match Uuid::from_slice(&transfer_created.id) {
+            Ok(id) => id.to_string(),
+            Err(e) => return Err(UsecaseError::from(RepositoryError::InvalidInput(e.to_string()))),
+        },
         transaction_type_name,
         amount: transfer_created.amount,
         asset_name,
@@ -236,9 +239,10 @@ where
 
             // Step 6: Map the result to ResEntryTransferDto
             Some(ResEntryTransferDto {
-                id: String::from_utf8(transfer.id).map_err(|e| {
-                    UsecaseError::from(RepositoryError::InvalidInput(e.to_string()))
-                })?,
+                id: match Uuid::from_slice(&transfer.id) {
+                    Ok(id) => id.to_string(),
+                    Err(e) => return Err(UsecaseError::from(RepositoryError::InvalidInput(e.to_string()))),
+                },
                 transaction_type_name,
                 amount: transfer.amount,
                 asset_name,
@@ -359,9 +363,10 @@ where
 
     // Step 6: Map the result to ResEntryTransferDto
     let res_entry = ResEntryTransferDto {
-        id: String::from_utf8(updated_transfer.id).map_err(|e| {
-            UsecaseError::from(RepositoryError::InvalidInput(e.to_string()))
-        })?,
+        id: match Uuid::from_slice(&updated_transfer.id) {
+            Ok(id) => id.to_string(),
+            Err(e) => return Err(UsecaseError::from(RepositoryError::InvalidInput(e.to_string()))),
+        },
         transaction_type_name,
         amount: updated_transfer.amount,
         asset_name,
@@ -505,9 +510,10 @@ where
 
         // Map the transfer to ResEntryTransferDto
         let res_entry = ResEntryTransferDto {
-            id: String::from_utf8(transfer.id).map_err(|e| {
-                UsecaseError::from(RepositoryError::InvalidInput(e.to_string()))
-            })?,
+            id: match Uuid::from_slice(&transfer.id) {
+                Ok(id) => id.to_string(),
+                Err(e) => return Err(UsecaseError::from(RepositoryError::InvalidInput(e.to_string()))),
+            },
             transaction_type_name,
             amount: transfer.amount,
             asset_name,

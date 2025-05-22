@@ -122,7 +122,7 @@ pub struct ReqCreateTransferDto {
 #[serde(crate = "rocket::serde")]
 pub struct ReqUpdateTransferDto {
     pub amount: Option<f64>,
-    pub aseet_id: Option<String>,
+    pub asset_id: Option<String>,
     pub destination_asset_id: Option<String>,
     pub contact_id: Option<String>,
     pub note: Option<String>,

@@ -1,6 +1,6 @@
 use utoipa::OpenApi;
 
-use crate::{configuration::api_doc_config::ApiConfig, swagger_ui::{asset_api::AssetApi, asset_type_api::AssetTypeApi, auth_api::AuthApi, contact_api::ContactApi, contact_type_api::ContactTypeApi, current_sheet_api::CurrentSheetApi, expense_api::ExpenseApi, expense_type::ExpenseTypeApi, income_api::IncomeApi, payment_api::PaymentApi, transaction_type_api::TransactionTypeApi, user_api::UserApi}};
+use crate::{configuration::api_doc_config::ApiConfig, swagger_ui::{asset_api::AssetApi, asset_type_api::AssetTypeApi, auth_api::AuthApi, contact_api::ContactApi, contact_type_api::ContactTypeApi, current_sheet_api::CurrentSheetApi, expense_api::ExpenseApi, expense_type::ExpenseTypeApi, income_api::IncomeApi, payment_api::PaymentApi, transaction_type_api::TransactionTypeApi, transfer_api::TransferApi, user_api::UserApi}};
 
 
 
@@ -20,6 +20,7 @@ pub fn init_open_api_setup() -> utoipa::openapi::OpenApi {
         TransactionTypeApi::openapi(),
         CurrentSheetApi::openapi(),
         PaymentApi::openapi(),
+        TransferApi::openapi()
     
     ];
 

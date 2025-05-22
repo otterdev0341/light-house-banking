@@ -10,3 +10,4 @@ pub mod income_api;
 pub mod transaction_type_api;
 pub mod current_sheet_api;
 pub mod payment_api;
+pub mod transfer_api;

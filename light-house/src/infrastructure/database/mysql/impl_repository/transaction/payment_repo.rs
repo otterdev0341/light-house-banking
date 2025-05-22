@@ -730,9 +730,31 @@ impl RecordPaymentRepositoryUtility for PaymentRepositoryImpl {
     ) 
         -> Result<Vec<transaction::Model>, RepositoryError>
     {
+
+        let payment_model = transaction_type::Entity::find()
+            .filter(transaction_type::Column::Name.eq("payment"))
+            .one(self.db_pool.as_ref())
+            .await
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+        let payment_uuid = match payment_model {
+            Some(model) => match Uuid::from_slice(&model.id) {
+                Ok(uuid) => uuid,
+                Err(err) => {
+                    return Err(RepositoryError::DatabaseError(format!(
+                        "Failed to parse UUID: {}",
+                        err
+                    )));
+                }
+            },
+            None => {
+                return Err(RepositoryError::NotFound("Income transaction type not found".to_string()));
+            }
+        };
+
         // Query the database to retrieve all payment records for the given user
         let payment_records = transaction::Entity::find()
             .filter(transaction::Column::UserId.eq(user_id.as_bytes().to_vec())) // Filter by user ID
+            .filter(transaction::Column::TransactionTypeId.eq(payment_uuid.as_bytes().to_vec())) // Filter by transaction type
             .all(self.db_pool.as_ref())
             .await
             .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;

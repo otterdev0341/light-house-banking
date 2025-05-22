@@ -6,7 +6,7 @@ use rust_decimal::Decimal;
 use rust_decimal::prelude::*;
 use uuid::Uuid;
 
-use crate::domain::entities::{asset, contact};
+use crate::domain::entities::{asset, contact, transaction_type};
 use crate::{
     domain::{dto::transaction_dto::{ReqCreateTransferDto, ReqUpdateTransferDto}, entities::transaction, req_repository::{balance_repository::BalanceRepositoryBase, transaction_repository::TransferRepositoryUtility}},
     infrastructure::database::mysql::impl_repository::balance_repo::BalanceRepositoryImpl, soc::soc_repository::RepositoryError
@@ -44,24 +44,21 @@ impl TransferRepositoryUtility for TransferRepositoryImpl {
         // transection type
         // transaction_type 1 : convert to uui
         log::info!("validation transfer_dto.transaction_type_id: {:?}", transfer_dto.transaction_type_id);
-        let transction_type_uuid = match Uuid::parse_str(&transfer_dto.transaction_type_id) {
-            Ok(uuid) => uuid,
-            Err(_) => {
-                txn.rollback().await.ok(); // Rollback on error
-                return Err(RepositoryError::OperationFailed("Invalid transaction type UUID".to_string()));
+        let transaction_type_id_binary = match Uuid::parse_str(&transfer_dto.transaction_type_id) {
+            Ok(uuid) => uuid.as_bytes().to_vec(),
+            Err(err) => {
+                log::error!("Invalid transaction_type_id: {}", err);
+                return Err(RepositoryError::InvalidInput("Invalid transaction_type_id".to_string()));
             }
         };
-        // transaction_type 2 : convert to bytes
-        let transaction_type_binary = transction_type_uuid.as_bytes().to_vec();
-        let is_transaction_type_valid = transaction::Entity::find_by_id(transaction_type_binary.clone())
-            .one(&txn)
+        
+        let is_transaction_type_valid = transaction_type::Entity::find_by_id(transaction_type_id_binary.clone())
+            .one(self.db_pool.as_ref())
             .await
-            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?
-            .is_some();
-        log::info!("is_transaction_type_valid: {:?}", is_transaction_type_valid);
-        if !is_transaction_type_valid {
-            txn.rollback().await.ok(); // Rollback on error
-            return Err(RepositoryError::OperationFailed("Invalid transaction type".to_string()));
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+        if is_transaction_type_valid.is_none() {
+            log::error!("Transaction type not found for ID: {}", transfer_dto.transaction_type_id);
+            return Err(RepositoryError::InvalidInput("Invalid transaction_type_id".to_string()));
         }
 
         // asset_id
@@ -129,7 +126,7 @@ impl TransferRepositoryUtility for TransferRepositoryImpl {
         // Create the ActiveModel for the transfer transaction
         let new_transfer = transaction::ActiveModel {
             id: Set(Uuid::new_v4().as_bytes().to_vec()), // Generate a new UUID for the transaction
-            transaction_type_id: Set(transaction_type_binary.clone()),
+            transaction_type_id: Set(transaction_type_id_binary.clone()),
             amount: Set(transfer_dto.amount),
             asset_id: Set(asset_id_binary.clone()),
             destination_asset_id: Set(Some(destination_asset_id_binary.clone())),
@@ -241,6 +238,85 @@ impl TransferRepositoryUtility for TransferRepositoryImpl {
             RepositoryError::DatabaseError(format!("Failed to start transaction: {}", err))
         })?;
 
+        // Validate the transfer_dto
+        log::info!("Validating transfer_dto: {:?}", transfer_dto.clone());
+        //asset 
+        
+        let asset_id_binary = match &transfer_dto.asset_id {
+            Some(asset_id) => match Uuid::parse_str(&asset_id.clone()) {
+                Ok(uuid) => uuid.as_bytes().to_vec(),
+                Err(_) => {
+                    txn.rollback().await.ok(); // Rollback on error
+                    return Err(RepositoryError::OperationFailed("Invalid asset ID UUID".to_string()));
+                }
+            },
+            None => {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::OperationFailed("Asset ID is missing".to_string()));
+            }
+        };
+        let is_asset_id_valid = asset::Entity::find_by_id(asset_id_binary.clone())
+            .one(&txn)
+            .await
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?
+            .is_some();
+        if !is_asset_id_valid {
+            txn.rollback().await.ok(); // Rollback on error
+            return Err(RepositoryError::OperationFailed("Invalid asset ID".to_string()));
+        }
+
+        // dest_assest
+        let destination_asset_id_binary = match transfer_dto.destination_asset_id {
+            Some(destination_asset_id) => match Uuid::parse_str(&destination_asset_id) {
+                Ok(uuid) => uuid.as_bytes().to_vec(),
+                Err(_) => {
+                    txn.rollback().await.ok(); // Rollback on error
+                    return Err(RepositoryError::OperationFailed("Invalid destination asset ID UUID".to_string()));
+                }
+            },
+            None => {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::OperationFailed("Destination asset ID is missing".to_string()));
+            }
+        };
+        let is_destination_asset_id_valid = asset::Entity::find_by_id(destination_asset_id_binary.clone())
+            .one(&txn)
+            .await
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?
+            .is_some();
+        if !is_destination_asset_id_valid {
+            txn.rollback().await.ok(); // Rollback on error
+            return Err(RepositoryError::OperationFailed("Invalid destination asset ID".to_string()));
+        }
+        //contact
+        let contact_id_binary = match transfer_dto.contact_id {
+            Some(contact_id) => match Uuid::parse_str(&contact_id) {
+                Ok(uuid) => uuid.as_bytes().to_vec(),
+                Err(_) => {
+                    txn.rollback().await.ok(); // Rollback on error
+                    return Err(RepositoryError::OperationFailed("Invalid contact ID UUID".to_string()));
+                }
+            },
+            None => {
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::OperationFailed("Contact ID is missing".to_string()));
+            }
+        };
+        let is_contact_id_valid = contact::Entity::find_by_id(contact_id_binary.clone())
+            .one(&txn)
+            .await
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?
+            .is_some();
+        if !is_contact_id_valid {
+            txn.rollback().await.ok(); // Rollback on error
+            return Err(RepositoryError::OperationFailed("Invalid contact ID".to_string()));
+        }
+        
+
+        // end validation
+
+
+
         let balance_repo = BalanceRepositoryImpl { db_pool: Arc::clone(&self.db_pool) };
 
         // 1. Fetch the original transaction
@@ -269,18 +345,19 @@ impl TransferRepositoryUtility for TransferRepositoryImpl {
     // 2. Prepare and execute the update for the transaction record
     log::debug!("Preparing to update transaction record...");
     let mut active_model: transaction::ActiveModel = original_transaction.into();
+    
     if let Some(amount) = transfer_dto.amount {
         active_model.amount = Set(amount);
     }
-    if let Some(asset_id) = transfer_dto.asset_id {
-        active_model.asset_id = Set(asset_id.as_bytes().to_vec());
+    if let Some(_asset_id) = &transfer_dto.asset_id {
+        active_model.asset_id = Set(asset_id_binary);
     }
-    if let Some(destination_asset_id) = transfer_dto.destination_asset_id {
-        active_model.destination_asset_id = Set(Some(destination_asset_id.as_bytes().to_vec()));
-    }
-    if let Some(contact_id) = transfer_dto.contact_id {
-        active_model.contact_id = Set(Some(contact_id.as_bytes().to_vec()));
-    }
+    
+    active_model.destination_asset_id = Set(Some(destination_asset_id_binary));
+    
+    
+    active_model.contact_id = Set(Some(contact_id_binary));
+    
     if let Some(note) = transfer_dto.note {
         active_model.note = Set(note);
     }
@@ -431,9 +508,30 @@ impl TransferRepositoryUtility for TransferRepositoryImpl {
     ) 
         -> Result<Vec<transaction::Model>, RepositoryError> 
     {
+        let transfer_model = transaction_type::Entity::find()
+            .filter(transaction_type::Column::Name.eq("transfer"))
+            .one(self.db_pool.as_ref())
+            .await
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+        let transfer_uuid = match transfer_model {
+            Some(model) => match Uuid::from_slice(&model.id) {
+                Ok(uuid) => uuid,
+                Err(err) => {
+                    return Err(RepositoryError::DatabaseError(format!(
+                        "Failed to parse UUID: {}",
+                        err
+                    )));
+                }
+            },
+            None => {
+                return Err(RepositoryError::NotFound("Income transaction type not found".to_string()));
+            }
+        };
+
         // Query the database to retrieve all transactions for the given user
         let transactions = transaction::Entity::find()
             .filter(transaction::Column::UserId.eq(user_id.as_bytes().to_vec())) // Filter by user ID
+            .filter(transaction::Column::TransactionTypeId.eq(transfer_uuid.as_bytes().to_vec())) // Filter by transaction type
             .all(self.db_pool.as_ref())
             .await
             .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;

@@ -159,7 +159,7 @@ async fn update_transfer(
     }
 
     match transfer_usecase.update_transfer(user.id, id, dto.into_inner()).await {
-        Ok(res) => Ok(SuccessResponse(Status::Created, res)),
+        Ok(res) => Ok(SuccessResponse(Status::Ok, res)),
         Err(err) => {
             let error_response = ErrorResponse(Status::InternalServerError, err.to_string());
             Err(error_response)

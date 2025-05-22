@@ -118,7 +118,7 @@ pub struct ReqCreateTransferDto {
 }
 
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct ReqUpdateTransferDto {
     pub amount: Option<f64>,

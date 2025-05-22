@@ -25,7 +25,7 @@ pub struct ReqCreatePaymentDto {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(crate = "rocket::serde")]
 pub struct ReqUpdatePaymentDto {
-    pub transaction_type_id: Option<String>,
+    //pub transaction_type_id: Option<String>,
     pub amount: Option<f64>,
     pub expense_id: Option<String>,
     pub asset_id: Option<String>,

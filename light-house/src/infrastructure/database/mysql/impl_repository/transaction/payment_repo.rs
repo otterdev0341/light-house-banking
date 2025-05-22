@@ -246,214 +246,303 @@ impl RecordPaymentRepositoryUtility for PaymentRepositoryImpl {
         user_id: Uuid, 
         transaction_id: Uuid, 
         payment_record_dto: ReqUpdatePaymentDto
-    ) 
-        -> Result<transaction::Model, RepositoryError>
+    ) -> Result<transaction::Model, RepositoryError> {
+    log::info!("Starting update_payment_record for user_id: {}, transaction_id: {}", user_id, transaction_id);
+
+    // Start a transaction
+    log::debug!("Starting database transaction...");
+    let txn = self.db_pool.begin().await.map_err(|err| {
+        log::error!("Failed to start transaction: {}", err);
+        RepositoryError::DatabaseError(format!("Failed to start transaction: {}", err))
+    })?;
+
+    let balance_repo = BalanceRepositoryImpl {
+        db_pool: Arc::clone(&self.db_pool),
+    };
+
+    // Fetch the original transaction to get old_amount and old_asset_id
+    log::debug!("Fetching original transaction for transaction_id: {}", transaction_id);
+    let original_transaction = match transaction::Entity::find_by_id(transaction_id.as_bytes().to_vec())
+        .filter(transaction::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
+        .one(&txn)
+        .await
     {
-        // Start a transaction
-        let txn = self.db_pool.begin().await.map_err(|err| {
-            RepositoryError::DatabaseError(format!("Failed to start transaction: {}", err))
-        })?;
+        Ok(Some(transaction)) => transaction,
+        Ok(None) => {
+            log::error!("Transaction not found for transaction_id: {}, user_id: {}", transaction_id, user_id);
+            txn.rollback().await.ok(); // Rollback on error
+            return Err(RepositoryError::NotFound(format!(
+                "Transaction {} not found for user {}",
+                transaction_id, user_id
+            )));
+        }
+        Err(err) => {
+            log::error!("Error fetching original transaction: {}", err);
+            txn.rollback().await.ok(); // Rollback on error
+            return Err(RepositoryError::DatabaseError(err.to_string()));
+        }
+    };
 
-        let balance_repo = BalanceRepositoryImpl {
-            db_pool: Arc::clone(&self.db_pool),
+    let old_amount = original_transaction.amount;
+    log::debug!("Old amount: {}", old_amount);
+
+    let old_asset_id_uuid = match Uuid::from_slice(&original_transaction.asset_id) {
+        Ok(uuid) => uuid,
+        Err(e) => {
+            log::error!("Invalid old asset UUID: {}", e);
+            txn.rollback().await.ok(); // Rollback on error
+            return Err(RepositoryError::OperationFailed(format!(
+                "Invalid old asset UUID: {}",
+                e
+            )));
+        }
+    };
+    log::debug!("Old asset ID: {}", old_asset_id_uuid);
+
+    // Convert the existing transaction into an ActiveModel for updating
+    log::debug!("Converting original transaction into ActiveModel...");
+    let mut active_model: transaction::ActiveModel = original_transaction.into();
+
+    // Update fields if they are provided in the DTO
+    if let Some(amount) = payment_record_dto.amount {
+        log::debug!("Updating amount to: {}", amount);
+        active_model.amount = Set(amount);
+    }
+    if let Some(expense_id) = payment_record_dto.expense_id {
+        log::debug!("Updating expense_id to: {}", expense_id);
+        let expense_id_binary = match Uuid::parse_str(&expense_id) {
+            Ok(uuid) => {
+                log::debug!("Parsed expense_id to binary: {:?}", uuid.as_bytes());
+                uuid.as_bytes().to_vec()
+            }
+            Err(e) => {
+                log::error!("Invalid expense_id: {}", e);
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::OperationFailed(format!(
+                    "Invalid expense UUID: {}",
+                    e
+                )));
+            }
         };
+        log::debug!("Binary expense_id length: {}", expense_id_binary.len());
+        active_model.expense_id = Set(Some(expense_id_binary));
+    }
+    if let Some(contact_id) = payment_record_dto.contact_id {
+        log::debug!("Updating contact_id to: {}", contact_id);
+        let contact_id_binary = match Uuid::parse_str(&contact_id) {
+            Ok(uuid) => {
+                log::debug!("Parsed contact_id to binary: {:?}", uuid.as_bytes());
+                uuid.as_bytes().to_vec()
+            }
+            Err(e) => {
+                log::error!("Invalid contact_id: {}", e);
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::OperationFailed(format!(
+                    "Invalid contact UUID: {}",
+                    e
+                )));
+            }
+        };
+        active_model.contact_id = Set(Some(contact_id_binary));
+    }
+    if let Some(note) = payment_record_dto.note {
+        log::debug!("Updating note to: {}", note);
+        active_model.note = Set(note);
+    }
+    if let Some(asset_id) = payment_record_dto.asset_id {
+        log::debug!("Updating asset_id to: {}", asset_id);
+        let asset_id_binary = match Uuid::parse_str(&asset_id) {
+            Ok(uuid) => {
+                log::debug!("Parsed asset_id to binary: {:?}", uuid.as_bytes());
+                uuid.as_bytes().to_vec()
+            }
+            Err(e) => {
+                log::error!("Invalid asset_id: {}", e);
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::OperationFailed(format!(
+                    "Invalid asset UUID: {}",
+                    e
+                )));
+            }
+        };
+        active_model.asset_id = Set(asset_id_binary);
+    }
 
-        // Fetch the original transaction to get old_amount and old_asset_id
-        let original_transaction = match transaction::Entity::find_by_id(transaction_id.as_bytes().to_vec())
-            .filter(transaction::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
-            .one(&txn)
+    // Save the updated transaction to the database
+    log::debug!("Saving updated transaction to the database...");
+    let updated_transaction = match active_model.update(&txn).await {
+        Ok(transaction) => transaction,
+        Err(err) => {
+            log::error!("Failed to update transaction: {}", err);
+            txn.rollback().await.ok(); // Rollback on error
+            return Err(RepositoryError::DatabaseError(err.to_string()));
+        }
+    };
+    log::debug!("Updated transaction saved successfully.");
+
+    // Update balances
+    let new_amount = updated_transaction.amount;
+    log::debug!("New amount: {}", new_amount);
+
+    let new_asset_id_uuid = match Uuid::from_slice(&updated_transaction.asset_id) {
+        Ok(uuid) => uuid,
+        Err(e) => {
+            log::error!("Invalid new asset UUID: {}", e);
+            txn.rollback().await.ok(); // Rollback on error
+            return Err(RepositoryError::OperationFailed(format!(
+                "Invalid new asset UUID: {}",
+                e
+            )));
+        }
+    };
+    log::debug!("New asset ID: {}", new_asset_id_uuid);
+
+    if old_asset_id_uuid == new_asset_id_uuid {
+        log::debug!("Asset ID has not changed. Calculating balance change...");
+        let balance_change = old_amount - new_amount;
+        log::debug!("Balance change: {}", balance_change);
+
+        let current_sheet = match balance_repo
+            .get_current_sheet_by_asset_id(user_id, new_asset_id_uuid)
             .await
         {
-            Ok(Some(transaction)) => transaction,
+            Ok(Some(sheet)) => sheet,
             Ok(None) => {
+                log::error!("Current sheet not found for asset ID: {}", new_asset_id_uuid);
                 txn.rollback().await.ok(); // Rollback on error
                 return Err(RepositoryError::NotFound(format!(
-                    "Transaction {} not found for user {}",
-                    transaction_id, user_id
+                    "Current sheet for asset {} not found",
+                    new_asset_id_uuid
                 )));
             }
             Err(err) => {
+                log::error!("Error fetching current sheet: {}", err);
                 txn.rollback().await.ok(); // Rollback on error
-                return Err(RepositoryError::DatabaseError(err.to_string()));
+                return Err(err);
             }
         };
 
-        let old_amount = original_transaction.amount;
-        let old_asset_id_uuid = match Uuid::from_slice(&original_transaction.asset_id) {
-            Ok(uuid) => uuid,
-            Err(e) => {
+        let final_balance = match Decimal::from_f64(balance_change) {
+            Some(change) => current_sheet.balance + change,
+            None => {
+                log::error!("Failed to convert balance change to Decimal.");
                 txn.rollback().await.ok(); // Rollback on error
-                return Err(RepositoryError::OperationFailed(format!(
-                    "Invalid old asset UUID: {}",
-                    e
+                return Err(RepositoryError::OperationFailed(
+                    "Failed to convert balance change to Decimal".to_string(),
+                ));
+            }
+        };
+        log::debug!("Final balance: {}", final_balance);
+
+        if let Err(err) = balance_repo
+            .update_current_sheet(user_id, new_asset_id_uuid, Some(final_balance.to_f64().unwrap()))
+            .await
+        {
+            log::error!("Failed to update current sheet balance: {}", err);
+            txn.rollback().await.ok(); // Rollback on error
+            return Err(err);
+        }
+        log::debug!("Balance updated successfully for unchanged asset ID.");
+    } else {
+        log::debug!("Asset ID has changed. Updating balances for old and new assets...");
+
+        // Revert old amount from old asset's balance
+        let old_asset_sheet = match balance_repo
+            .get_current_sheet_by_asset_id(user_id, old_asset_id_uuid)
+            .await
+        {
+            Ok(Some(sheet)) => sheet,
+            Ok(None) => {
+                log::error!("Current sheet not found for old asset ID: {}", old_asset_id_uuid);
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::NotFound(format!(
+                    "Current sheet for old asset {} not found",
+                    old_asset_id_uuid
                 )));
             }
-        };
-
-        // Convert the existing transaction into an ActiveModel for updating
-        let mut active_model: transaction::ActiveModel = original_transaction.into();
-
-        // Update fields if they are provided in the DTO
-        if let Some(transaction_type_id) = payment_record_dto.transaction_type_id {
-            active_model.transaction_type_id = Set(transaction_type_id.as_bytes().to_vec());
-        }
-        if let Some(amount) = payment_record_dto.amount {
-            active_model.amount = Set(amount);
-        }
-        if let Some(expense_id) = payment_record_dto.expense_id {
-            active_model.expense_id = Set(Some(expense_id.as_bytes().to_vec()));
-        }
-        if let Some(contact_id) = payment_record_dto.contact_id {
-            active_model.contact_id = Set(Some(contact_id.as_bytes().to_vec()));
-        }
-        if let Some(note) = payment_record_dto.note {
-            active_model.note = Set(note);
-        }
-
-        // Save the updated transaction to the database
-        let updated_transaction = match active_model.update(&txn).await {
-            Ok(transaction) => transaction,
             Err(err) => {
+                log::error!("Error fetching current sheet for old asset: {}", err);
                 txn.rollback().await.ok(); // Rollback on error
-                return Err(RepositoryError::DatabaseError(err.to_string()));
+                return Err(err);
             }
         };
 
-        // Update balances
-        let new_amount = updated_transaction.amount;
-        let new_asset_id_uuid = match Uuid::from_slice(&updated_transaction.asset_id) {
-            Ok(uuid) => uuid,
-            Err(e) => {
+        let balance_after_reverting_old = match Decimal::from_f64(old_amount) {
+            Some(amount) => old_asset_sheet.balance + amount,
+            None => {
+                log::error!("Failed to convert old_amount to Decimal.");
                 txn.rollback().await.ok(); // Rollback on error
-                return Err(RepositoryError::OperationFailed(format!(
-                    "Invalid new asset UUID: {}",
-                    e
+                return Err(RepositoryError::OperationFailed(
+                    "Failed to convert old_amount to Decimal".to_string(),
+                ));
+            }
+        };
+        log::debug!("Balance after reverting old amount: {}", balance_after_reverting_old);
+
+        if let Err(err) = balance_repo
+            .update_current_sheet(user_id, old_asset_id_uuid, Some(balance_after_reverting_old.to_f64().unwrap()))
+            .await
+        {
+            log::error!("Failed to update balance for old asset: {}", err);
+            txn.rollback().await.ok(); // Rollback on error
+            return Err(err);
+        }
+        log::debug!("Balance updated successfully for old asset.");
+
+        // Apply new amount to new asset's balance
+        let new_asset_sheet = match balance_repo
+            .get_current_sheet_by_asset_id(user_id, new_asset_id_uuid)
+            .await
+        {
+            Ok(Some(sheet)) => sheet,
+            Ok(None) => {
+                log::error!("Current sheet not found for new asset ID: {}", new_asset_id_uuid);
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(RepositoryError::NotFound(format!(
+                    "Current sheet for new asset {} not found",
+                    new_asset_id_uuid
                 )));
             }
+            Err(err) => {
+                log::error!("Error fetching current sheet for new asset: {}", err);
+                txn.rollback().await.ok(); // Rollback on error
+                return Err(err);
+            }
         };
 
-        if old_asset_id_uuid == new_asset_id_uuid {
-            // Asset ID hasn't changed, calculate net change
-            let balance_change = old_amount - new_amount;
-            let current_sheet = match balance_repo
-                .get_current_sheet_by_asset_id(user_id, new_asset_id_uuid)
-                .await
-            {
-                Ok(Some(sheet)) => sheet,
-                Ok(None) => {
-                    txn.rollback().await.ok(); // Rollback on error
-                    return Err(RepositoryError::NotFound(format!(
-                        "Current sheet for asset {} not found",
-                        new_asset_id_uuid
-                    )));
-                }
-                Err(err) => {
-                    txn.rollback().await.ok(); // Rollback on error
-                    return Err(err);
-                }
-            };
-
-            let final_balance = match Decimal::from_f64(balance_change) {
-                Some(change) => current_sheet.balance + change,
-                None => {
-                    txn.rollback().await.ok(); // Rollback on error
-                    return Err(RepositoryError::OperationFailed(
-                        "Failed to convert balance change to Decimal".to_string(),
-                    ));
-                }
-            };
-
-            if let Err(err) = balance_repo
-                .update_current_sheet(user_id, new_asset_id_uuid, Some(final_balance.to_f64().unwrap()))
-                .await
-            {
+        let final_new_asset_balance = match Decimal::from_f64(new_amount) {
+            Some(amount) => new_asset_sheet.balance - amount,
+            None => {
+                log::error!("Failed to convert new amount to Decimal.");
                 txn.rollback().await.ok(); // Rollback on error
-                return Err(err);
+                return Err(RepositoryError::OperationFailed(
+                    "Failed to convert new amount to Decimal".to_string(),
+                ));
             }
-        } else {
-            // Asset ID has changed:
-            // Revert old amount from old asset's balance
-            let old_asset_sheet = match balance_repo
-                .get_current_sheet_by_asset_id(user_id, old_asset_id_uuid)
-                .await
-            {
-                Ok(Some(sheet)) => sheet,
-                Ok(None) => {
-                    txn.rollback().await.ok(); // Rollback on error
-                    return Err(RepositoryError::NotFound(format!(
-                        "Current sheet for old asset {} not found",
-                        old_asset_id_uuid
-                    )));
-                }
-                Err(err) => {
-                    txn.rollback().await.ok(); // Rollback on error
-                    return Err(err);
-                }
-            };
+        };
+        log::debug!("Final balance for new asset: {}", final_new_asset_balance);
 
-            let balance_after_reverting_old = match Decimal::from_f64(old_amount) {
-                Some(amount) => old_asset_sheet.balance + amount,
-                None => {
-                    txn.rollback().await.ok(); // Rollback on error
-                    return Err(RepositoryError::OperationFailed(
-                        "Failed to convert old_amount to Decimal".to_string(),
-                    ));
-                }
-            };
-
-            if let Err(err) = balance_repo
-                .update_current_sheet(user_id, old_asset_id_uuid, Some(balance_after_reverting_old.to_f64().unwrap()))
-                .await
-            {
-                txn.rollback().await.ok(); // Rollback on error
-                return Err(err);
-            }
-
-            // Apply new amount to new asset's balance
-            let new_asset_sheet = match balance_repo
-                .get_current_sheet_by_asset_id(user_id, new_asset_id_uuid)
-                .await
-            {
-                Ok(Some(sheet)) => sheet,
-                Ok(None) => {
-                    txn.rollback().await.ok(); // Rollback on error
-                    return Err(RepositoryError::NotFound(format!(
-                        "Current sheet for new asset {} not found",
-                        new_asset_id_uuid
-                    )));
-                }
-                Err(err) => {
-                    txn.rollback().await.ok(); // Rollback on error
-                    return Err(err);
-                }
-            };
-
-            let final_new_asset_balance = match Decimal::from_f64(new_amount) {
-                Some(amount) => new_asset_sheet.balance - amount,
-                None => {
-                    txn.rollback().await.ok(); // Rollback on error
-                    return Err(RepositoryError::OperationFailed(
-                        "Failed to convert new amount to Decimal".to_string(),
-                    ));
-                }
-            };
-
-            if let Err(err) = balance_repo
-                .update_current_sheet(user_id, new_asset_id_uuid, Some(final_new_asset_balance.to_f64().unwrap()))
-                .await
-            {
-                txn.rollback().await.ok(); // Rollback on error
-                return Err(err);
-            }
+        if let Err(err) = balance_repo
+            .update_current_sheet(user_id, new_asset_id_uuid, Some(final_new_asset_balance.to_f64().unwrap()))
+            .await
+        {
+            log::error!("Failed to update balance for new asset: {}", err);
+            txn.rollback().await.ok(); // Rollback on error
+            return Err(err);
         }
-
-        // Commit the transaction
-        txn.commit().await.map_err(|err| {
-            RepositoryError::DatabaseError(format!("Failed to commit transaction: {}", err))
-        })?;
-
-        Ok(updated_transaction)
+        log::debug!("Balance updated successfully for new asset.");
     }
+
+    // Commit the transaction
+    log::debug!("Committing transaction...");
+    txn.commit().await.map_err(|err| {
+        log::error!("Failed to commit transaction: {}", err);
+        RepositoryError::DatabaseError(format!("Failed to commit transaction: {}", err))
+    })?;
+    log::info!("Transaction committed successfully for transaction_id: {}", transaction_id);
+
+    Ok(updated_transaction)
+}
 
 
     async fn delete_payment_record(

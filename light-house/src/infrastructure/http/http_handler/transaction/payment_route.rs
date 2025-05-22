@@ -214,7 +214,7 @@ async fn delete_payment(
 
     log::info!("Deleting payment with ID: {}", payment_id);
     match payment_usecase.delete_payment(user.id, payment_id).await {
-        Ok(_) => Ok(SuccessResponse(Status::NoContent, format!("Payment with ID: {} deleted successfully", payment_id))),
+        Ok(_) => Ok(SuccessResponse(Status::Ok, format!("Payment with ID: {} deleted successfully", payment_id))),
         Err(err) => {
             let error_response = ErrorResponse(Status::InternalServerError, err.to_string());
             Err(error_response)

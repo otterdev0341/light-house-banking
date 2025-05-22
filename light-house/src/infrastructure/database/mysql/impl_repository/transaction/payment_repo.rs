@@ -549,115 +549,159 @@ impl RecordPaymentRepositoryUtility for PaymentRepositoryImpl {
         &self, 
         user_id: Uuid, 
         transaction_id: Uuid
-    ) 
-        -> Result<(), RepositoryError>
+    ) -> Result<(), RepositoryError> {
+    log::info!("Starting delete_payment_record for user_id: {}, transaction_id: {}", user_id, transaction_id);
+
+    // Start a transaction
+    log::debug!("Starting database transaction...");
+    let txn = self.db_pool.begin().await.map_err(|err| {
+        log::error!("Failed to start transaction: {}", err);
+        RepositoryError::DatabaseError(format!("Failed to start transaction: {}", err))
+    })?;
+
+    let balance_repo = BalanceRepositoryImpl {
+        db_pool: Arc::clone(&self.db_pool),
+    };
+
+    // Validate transaction_id
+    let transaction_id_binary = match Uuid::parse_str(&transaction_id.to_string()) {
+        Ok(uuid) => uuid.as_bytes().to_vec(),
+        Err(err) => {
+            log::error!("Invalid transaction_id: {}", err);
+            return Err(RepositoryError::InvalidInput("Invalid transaction_id".to_string()));
+        }
+    };
+
+    // Fetch the transaction to be deleted
+    log::debug!("Fetching transaction to delete for transaction_id: {}", transaction_id);
+    let transaction_to_delete = match transaction::Entity::find_by_id(transaction_id_binary)
+        .filter(transaction::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
+        .one(&txn)
+        .await
     {
-
-        // Start a transaction
-        let txn = self.db_pool.begin().await.map_err(|err| {
-            RepositoryError::DatabaseError(format!("Failed to start transaction: {}", err))
-        })?;
-
-        let balance_repo = BalanceRepositoryImpl {
-            db_pool: Arc::clone(&self.db_pool),
-        };
-
-        // Fetch the transaction to be deleted
-        let transaction_to_delete = match transaction::Entity::find_by_id(transaction_id.as_bytes().to_vec())
-            .filter(transaction::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
-            .one(&txn)
-            .await
-        {
-            Ok(Some(transaction)) => transaction,
-            Ok(None) => {
-                txn.rollback().await.ok(); // Rollback on error
-                return Err(RepositoryError::NotFound(format!(
-                    "Payment record {} not found for user {}",
-                    transaction_id, user_id
-                )));
-            }
-            Err(err) => {
-                txn.rollback().await.ok(); // Rollback on error
-                return Err(RepositoryError::DatabaseError(err.to_string()));
-            }
-        };
-
-        let amount_to_add_back = transaction_to_delete.amount;
-        let asset_id_uuid = match Uuid::from_slice(&transaction_to_delete.asset_id) {
-            Ok(uuid) => uuid,
-            Err(e) => {
-                txn.rollback().await.ok(); // Rollback on error
-                return Err(RepositoryError::OperationFailed(format!(
-                    "Invalid asset UUID: {}",
-                    e
-                )));
-            }
-        };
-
-        // Delete the payment record
-        let delete_result = match transaction::Entity::delete_by_id(transaction_id.as_bytes().to_vec())
-            .exec(&txn)
-            .await
-        {
-            Ok(result) => result,
-            Err(err) => {
-                txn.rollback().await.ok(); // Rollback on error
-                return Err(RepositoryError::DatabaseError(err.to_string()));
-            }
-        };
-
-        if delete_result.rows_affected == 0 {
+        Ok(Some(transaction)) => transaction,
+        Ok(None) => {
+            log::error!("Transaction not found for transaction_id: {}, user_id: {}", transaction_id, user_id);
             txn.rollback().await.ok(); // Rollback on error
             return Err(RepositoryError::NotFound(format!(
-                "Payment record {} not found for user {} during delete operation",
+                "Payment record {} not found for user {}",
                 transaction_id, user_id
             )));
         }
+        Err(err) => {
+            log::error!("Error fetching transaction to delete: {}", err);
+            txn.rollback().await.ok(); // Rollback on error
+            return Err(RepositoryError::DatabaseError(err.to_string()));
+        }
+    };
 
-        // Update the balance in the CurrentSheet table
-        let current_sheet = match balance_repo
-            .get_current_sheet_by_asset_id(user_id, asset_id_uuid)
-            .await
-        {
-            Ok(Some(sheet)) => sheet,
-            Ok(None) => {
-                txn.rollback().await.ok(); // Rollback on error
-                return Err(RepositoryError::NotFound(format!(
-                    "Current sheet not found for asset {}",
-                    asset_id_uuid
-                )));
-            }
-            Err(err) => {
-                txn.rollback().await.ok(); // Rollback on error
-                return Err(err);
-            }
-        };
+    log::debug!("Transaction to delete found: {:?}", transaction_to_delete);
 
-        let new_balance = match Decimal::from_f64(amount_to_add_back) {
-            Some(amount) => current_sheet.balance + amount,
-            None => {
-                txn.rollback().await.ok(); // Rollback on error
-                return Err(RepositoryError::OperationFailed(
-                    "Failed to convert amount_to_add_back to Decimal".to_string(),
-                ));
-            }
-        };
+    let amount_to_add_back = transaction_to_delete.amount;
+    log::debug!("Amount to add back to balance: {}", amount_to_add_back);
 
-        if let Err(err) = balance_repo
-            .update_current_sheet(user_id, asset_id_uuid, Some(new_balance.to_f64().unwrap()))
-            .await
-        {
+    let asset_id_uuid = match Uuid::from_slice(&transaction_to_delete.asset_id) {
+        Ok(uuid) => {
+            log::debug!("Parsed asset_id to UUID: {}", uuid);
+            uuid
+        }
+        Err(e) => {
+            log::error!("Invalid asset UUID: {}", e);
+            txn.rollback().await.ok(); // Rollback on error
+            return Err(RepositoryError::OperationFailed(format!(
+                "Invalid asset UUID: {}",
+                e
+            )));
+        }
+    };
+
+    // Delete the payment record
+    log::debug!("Deleting transaction with transaction_id: {}", transaction_id);
+    let delete_result = match transaction::Entity::delete_by_id(transaction_id.as_bytes().to_vec())
+        .exec(&txn)
+        .await
+    {
+        Ok(result) => result,
+        Err(err) => {
+            log::error!("Failed to delete transaction: {}", err);
+            txn.rollback().await.ok(); // Rollback on error
+            return Err(RepositoryError::DatabaseError(err.to_string()));
+        }
+    };
+
+    log::debug!("Delete result: rows_affected = {}", delete_result.rows_affected);
+
+    if delete_result.rows_affected == 0 {
+        log::error!("No rows affected during delete operation for transaction_id: {}", transaction_id);
+        txn.rollback().await.ok(); // Rollback on error
+        return Err(RepositoryError::NotFound(format!(
+            "Payment record {} not found for user {} during delete operation",
+            transaction_id, user_id
+        )));
+    }
+
+    // Update the balance in the CurrentSheet table
+    log::debug!("Fetching current sheet for asset_id: {}", asset_id_uuid);
+    let current_sheet = match balance_repo
+        .get_current_sheet_by_asset_id(user_id, asset_id_uuid)
+        .await
+    {
+        Ok(Some(sheet)) => sheet,
+        Ok(None) => {
+            log::error!("Current sheet not found for asset_id: {}", asset_id_uuid);
+            txn.rollback().await.ok(); // Rollback on error
+            return Err(RepositoryError::NotFound(format!(
+                "Current sheet not found for asset {}",
+                asset_id_uuid
+            )));
+        }
+        Err(err) => {
+            log::error!("Error fetching current sheet: {}", err);
             txn.rollback().await.ok(); // Rollback on error
             return Err(err);
         }
+    };
 
-        // Commit the transaction
-        txn.commit().await.map_err(|err| {
-            RepositoryError::DatabaseError(format!("Failed to commit transaction: {}", err))
-        })?;
+    log::debug!("Current sheet found: {:?}", current_sheet);
 
-        Ok(())
+    let new_balance = match Decimal::from_f64(amount_to_add_back) {
+        Some(amount) => {
+            log::debug!("Calculating new balance: current_balance = {}, amount_to_add_back = {}", current_sheet.balance, amount);
+            current_sheet.balance + amount
+        }
+        None => {
+            log::error!("Failed to convert amount_to_add_back to Decimal: {}", amount_to_add_back);
+            txn.rollback().await.ok(); // Rollback on error
+            return Err(RepositoryError::OperationFailed(
+                "Failed to convert amount_to_add_back to Decimal".to_string(),
+            ));
+        }
+    };
+
+    log::debug!("New balance calculated: {}", new_balance);
+
+    if let Err(err) = balance_repo
+        .update_current_sheet(user_id, asset_id_uuid, Some(new_balance.to_f64().unwrap()))
+        .await
+    {
+        log::error!("Failed to update balance in CurrentSheet table: {}", err);
+        txn.rollback().await.ok(); // Rollback on error
+        return Err(err);
     }
+
+    log::debug!("Balance updated successfully in CurrentSheet table.");
+
+    // Commit the transaction
+    log::debug!("Committing transaction...");
+    txn.commit().await.map_err(|err| {
+        log::error!("Failed to commit transaction: {}", err);
+        RepositoryError::DatabaseError(format!("Failed to commit transaction: {}", err))
+    })?;
+
+    log::info!("Payment record deleted successfully for transaction_id: {}", transaction_id);
+
+    Ok(())
+}
 
 
     async fn get_payment_record_by_id(

@@ -38,6 +38,8 @@ impl BalanceRepositoryBase for BalanceRepositoryImpl {
         &self,
         user_id: Uuid,
     ) -> Result<Vec<current_sheet::Model>, RepositoryError> {
+        
+        
         // Query the database to retrieve all current sheets for the given user
         let current_sheets = current_sheet::Entity::find()
             .filter(current_sheet::Column::UserId.eq(user_id.as_bytes().to_vec()))

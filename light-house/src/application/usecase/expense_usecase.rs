@@ -1,8 +1,7 @@
 use std::sync::Arc;
-
 use uuid::Uuid;
 
-use crate::{application::usecase_req_impl::expense_usecase::ExpenseUsecase, domain::{dto::expense_dto::{ReqCreateExpenseDto, ReqUpdateExpenseDto, ResEntryExpenseDto, ResListExpenseDto}, req_repository::expense_repository::{ExpenseRepositoryBase, ExpenseRepositoryUtill}}, soc::soc_usecase::UsecaseError};
+use crate::{application::usecase_req_impl::expense_usecase::ExpenseUsecase, domain::{dto::expense_dto::{ReqCreateExpenseDto, ReqUpdateExpenseDto, ResEntryExpenseDto, ResListExpenseDto}, entities::expense_type, req_repository::expense_repository::{ExpenseRepositoryBase, ExpenseRepositoryUtill}}, soc::soc_usecase::UsecaseError};
 
 
 
@@ -236,17 +235,20 @@ where
             Ok(expenses) => expenses,
             Err(err) => return Err(UsecaseError::from(err)),
         };
-
+        
         // Step 2: Map the expenses to ResEntryExpenseDto
         let mut data = Vec::new();
         for expense in expenses {
+
+
+            
             // Fetch the expense type name using the expense_type_id
             let expense_type_name = match self
                 .expense_repo
-                .find_by_user_id_and_expense_id(user_id, Uuid::from_slice(&expense.expense_type_id).map_err(|err| UsecaseError::Unexpected(err.to_string()))?)
+                .find_expense_type_by_id(Uuid::from_slice(&expense.expense_type_id).map_err(|err| UsecaseError::Unexpected(err.to_string()))?)
                 .await
             {
-                Ok(Some(expense_type)) => expense_type.description,
+                Ok(Some(expense_type)) => expense_type.name,
                 Ok(None) => String::from("Unknown"),
                 Err(err) => return Err(UsecaseError::from(err)),
             };

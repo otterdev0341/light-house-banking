@@ -276,7 +276,7 @@ where
                     UsecaseError::InvalidData(format!("Invalid contact_type_id: {}", err))
                 })?;
 
-            let contact_type_name = match self.contact_repository.find_by_id(contact_type_id).await {
+            let contact_type_name = match self.contact_repository.find_contact_type_by_id(user_id,contact_type_id).await {
                 Ok(Some(contact_type)) => contact_type.name,
                 Ok(None) => String::from("Unknown"),
                 Err(err) => {

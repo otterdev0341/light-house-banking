@@ -6,6 +6,7 @@ use uuid::Uuid;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::*;
 use crate::domain::entities::{asset, contact, transaction_type};
+use crate::implentation::date_time_utill::parse_to_datetime_utc;
 use crate::{
     domain::{dto::transaction_dto::{ReqCreateIncomeDto, ReqUpdateIncomeDto}, entities::transaction, req_repository::{balance_repository::BalanceRepositoryBase, transaction_repository::RecordIncomeRepositoryUtility}},
     infrastructure::database::mysql::impl_repository::balance_repo::BalanceRepositoryImpl,
@@ -91,7 +92,14 @@ impl RecordIncomeRepositoryUtility for IncomeRepositoryImpl {
             return Err(RepositoryError::InvalidInput("Invalid contact_id".to_string()));
         }
   
-
+        // handle date conversion
+        let created_date_utc = match parse_to_datetime_utc(&income_record_dto.created_at) {
+            Ok(date) => date,
+            Err(err) => {
+                log::error!("Failed to parse created_at date: {}", err);
+                return Err(RepositoryError::InvalidInput("Invalid created_at date".to_string()));
+            }
+        };
 
         // 1: start transaction
         let txn = self.db_pool.begin().await.map_err(|err| {
@@ -112,6 +120,7 @@ impl RecordIncomeRepositoryUtility for IncomeRepositoryImpl {
             contact_id: Set(Some(contact_id_binary)),
             note: Set(income_record_dto.note),
             user_id: Set(user_id.as_bytes().to_vec()),
+            created_at: Set(Some(created_date_utc)),
             ..Default::default()
         };
 
@@ -266,6 +275,8 @@ impl RecordIncomeRepositoryUtility for IncomeRepositoryImpl {
             txn.rollback().await.ok(); // Rollback on error
             return Err(RepositoryError::InvalidInput("Invalid asset_id".to_string()));
         }
+
+        
     
         // Update the transaction
         let mut active_model: transaction::ActiveModel = original_transaction.into();
@@ -296,13 +307,24 @@ impl RecordIncomeRepositoryUtility for IncomeRepositoryImpl {
                 txn.rollback().await.ok(); // Rollback on error
                 return Err(RepositoryError::InvalidInput("Invalid contact_id".to_string()));
             }
-    
+            
             active_model.contact_id = Set(Some(contact_id_binary));
         }
         if let Some(note) = income_record_dto.note {
             active_model.note = Set(note);
         }
-    
+        if let Some(created_at) = income_record_dto.created_at {
+            match parse_to_datetime_utc(&created_at) {
+                Ok(date) => active_model.created_at = Set(Some(date)),
+                Err(err) => {
+                    txn.rollback().await.ok(); // Rollback on error
+                    return Err(RepositoryError::InvalidInput(format!(
+                        "Invalid created_at date: {}",
+                        err
+                    )));
+                }
+            }
+        }
         let updated_transaction = match active_model.update(&txn).await {
             Ok(transaction) => transaction,
             Err(err) => {

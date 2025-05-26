@@ -19,6 +19,8 @@ pub struct ReqCreatePaymentDto {
     pub contact_id: String,
     #[validate(length(min = 1, message = "The note must not be empty"))]
     pub note: String,
+    #[validate(length(min = 1, message = "The created_at must not be empty"))]
+    pub created_at: String,
 }
 
 
@@ -31,6 +33,7 @@ pub struct ReqUpdatePaymentDto {
     pub asset_id: Option<String>,
     pub contact_id: Option<String>,
     pub note: Option<String>,
+    pub created_at: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -67,6 +70,8 @@ pub struct ReqCreateIncomeDto {
     pub contact_id: String,
     #[validate(length(min = 1, message = "The note must not be empty"))]
     pub note: String,
+    #[validate(length(min = 1, message = "The created_at must not be empty"))]
+    pub created_at: String,
 }
 
 
@@ -77,6 +82,7 @@ pub struct ReqUpdateIncomeDto {
     pub asset_id: Option<String>,
     pub contact_id: Option<String>,
     pub note: Option<String>,
+    pub created_at: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -115,6 +121,8 @@ pub struct ReqCreateTransferDto {
     pub contact_id: String,
     #[validate(length(min = 1, message = "The note must not be empty"))]
     pub note: String,
+    #[validate(length(min = 1, message = "The created_at must not be empty"))]
+    pub created_at: String,
 }
 
 
@@ -126,6 +134,7 @@ pub struct ReqUpdateTransferDto {
     pub destination_asset_id: Option<String>,
     pub contact_id: Option<String>,
     pub note: Option<String>,
+    pub created_at: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

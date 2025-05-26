@@ -1,12 +1,13 @@
 use uuid::Uuid;
 
-use crate::{domain::{dto::asset_dto::{ReqCreateAssetDto, ReqUpdateAssetDto}, entities::asset}, soc::soc_repository::RepositoryError};
+use crate::{domain::{dto::asset_dto::{ReqCreateAssetDto, ReqUpdateAssetDto}, entities::{asset, asset_type}}, soc::soc_repository::RepositoryError};
 
 
 #[async_trait::async_trait]
 #[mockall::automock]
 pub trait AssetRepositoryUtility: Send + Sync {
     async fn find_all_by_user_id(&self, user_id: Uuid) -> Result<Vec<asset::Model>, RepositoryError>;
+    async fn find_by_user_and_asset_type_id(&self,user_id: Uuid, asset_id: Uuid)  -> Result<Option<asset_type::Model>, RepositoryError>;
     
 }
 

@@ -106,6 +106,10 @@ impl AssetRepositoryUtility for TransferRepositoryComposite {
     {
         self.asset_repository.find_all_by_user_id(user_id).await
     }
+    async fn find_by_user_and_asset_type_id(&self, asset_id: Uuid, user_id: Uuid) -> Result<Option<asset_type::Model>, RepositoryError>
+    {
+        self.asset_repository.find_by_user_and_asset_type_id(asset_id, user_id).await
+    }
 }
 
 #[async_trait::async_trait]
@@ -141,6 +145,10 @@ impl AssetTypeRepositoryUtility for TransferRepositoryComposite {
     async fn find_all_by_user_id(&self, user_id: Uuid) -> Result<Vec<asset_type::Model>, RepositoryError>
     {
         self.asset_type_repository.find_all_by_user_id(user_id).await
+    }
+    async fn find_asset_type_by_id(&self, user_id: Uuid, asset_type_id: Uuid) -> Result<Option<asset_type::Model>, RepositoryError>
+    {
+        self.asset_type_repository.find_asset_type_by_id(user_id, asset_type_id).await
     }
 }
 

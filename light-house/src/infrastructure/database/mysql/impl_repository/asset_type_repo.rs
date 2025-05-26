@@ -189,4 +189,18 @@ impl AssetTypeRepositoryUtility for AssetTypeRepositoryImpl{
         // Return the list of asset types
         asset_types.map_err(|err| RepositoryError::OperationFailed(err.to_string())) // Convert the error type
     }
+
+    async fn find_asset_type_by_id(&self, user_id: Uuid, asset_type_id: Uuid) -> Result<Option<asset_type::Model>, RepositoryError>
+    {
+        // Query the database to find the asset type by ID and ensure it belongs to the user
+        let asset_type = asset_type::Entity::find()
+            .filter(asset_type::Column::Id.eq(asset_type_id.as_bytes().to_vec())) // Filter by asset type ID
+            .filter(asset_type::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
+            .one(self.db_pool.as_ref())
+            .await
+            .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+
+        // Return the asset type if found, or None if not found
+        Ok(asset_type)
+    }
 }

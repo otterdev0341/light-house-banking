@@ -80,7 +80,10 @@ where
         // Step 2: Extract the asset_type_id and convert it to a Uuid
         let asset_type_id = match Uuid::from_slice(&asset.asset_type_id) {
             Ok(id) => id,
-            Err(err) => return Err(UsecaseError::Unexpected(err.to_string())), // Handle invalid UUID error
+            Err(err) => {
+                log::error!("Invalid asset_type_id: {}", err);
+                return Err(UsecaseError::Unexpected(err.to_string()));
+            }
         };
 
         // Step 3: Fetch the asset type name using the asset_type_id
@@ -224,10 +227,19 @@ where
             };
 
             // Fetch the asset type name using the asset_type_id
-            let asset_type = match self.asset_repository.find_by_id(user_id, asset_type_id).await {
-                Ok(Some(asset_type)) => asset_type.name,
-                Ok(None) => String::from("Unknown"), // Default value if asset type is not found
-                Err(err) => return Err(UsecaseError::from(err)), // Handle repository errors
+            let asset_type_name = match self.asset_repository.find_by_user_and_asset_type_id(user_id, asset_type_id).await {
+                Ok(Some(asset_type)) => {
+                    log::debug!("Found asset type: {}", asset_type.name);
+                    asset_type.name
+                },
+                Ok(None) => {
+                    log::warn!("Asset type not found for user_id: {}, asset_type_id: {}", user_id, asset_type_id);
+                    String::from("Unknown") // Default value if asset type is not found
+                },
+                Err(err) => {
+                    log::error!("Error fetching asset type: {}", err);
+                    return Err(UsecaseError::from(err)); // Handle repository errors
+                }
             };
 
             // Map the asset to ResEntryAssetDto
@@ -237,7 +249,7 @@ where
                     Err(err) => return Err(UsecaseError::Unexpected(err.to_string())), // Handle invalid UUID error
                 },
                 name: asset.name,
-                asset_type,
+                asset_type: asset_type_name, // Use the fetched asset type name
                 created_at: match asset.created_at {
                     Some(dt) => dt.to_string(),
                     None => String::from(""),

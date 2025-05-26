@@ -3,7 +3,7 @@ use std::sync::Arc;
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use uuid::Uuid;
 
-use crate::{domain::{dto::asset_dto::{ReqCreateAssetDto, ReqUpdateAssetDto}, entities::asset, req_repository::{asset_repository::{AssetRepositoryBase, AssetRepositoryUtility}, balance_repository::BalanceRepositoryBase}}, soc::soc_repository::RepositoryError};
+use crate::{domain::{dto::asset_dto::{ReqCreateAssetDto, ReqUpdateAssetDto}, entities::{asset, asset_type}, req_repository::{asset_repository::{AssetRepositoryBase, AssetRepositoryUtility}, balance_repository::BalanceRepositoryBase}}, soc::soc_repository::RepositoryError};
 
 use super::balance_repo::BalanceRepositoryImpl;
 
@@ -272,6 +272,18 @@ impl AssetRepositoryUtility for AssetRepositoryImpl{
 
         // Return the list of assets
         Ok(assets)
+    }
+
+    async fn find_by_user_and_asset_type_id(&self, user_id: Uuid, asset_type_id: Uuid) -> Result<Option<asset_type::Model>, RepositoryError>
+    {   
+        let asset_type = asset_type::Entity::find()
+        .filter(asset_type::Column::Id.eq(asset_type_id.as_bytes().to_vec())) // Use asset_type_id
+        .filter(asset_type::Column::UserId.eq(user_id.as_bytes().to_vec())) // Ensure it belongs to the user
+        .one(self.db_pool.as_ref())
+        .await
+        .map_err(|err| RepositoryError::DatabaseError(err.to_string()))?;
+
+    Ok(asset_type)
     }
 }
 

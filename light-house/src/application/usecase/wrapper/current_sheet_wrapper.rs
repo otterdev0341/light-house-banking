@@ -2,7 +2,7 @@ use std::{ops::Deref, sync::Arc};
 
 use uuid::Uuid;
 
-use crate::{domain::{dto::asset_dto::{ReqCreateAssetDto, ReqUpdateAssetDto}, entities::{asset, current_sheet}, req_repository::{asset_repository::{AssetRepositoryBase, AssetRepositoryUtility}, balance_repository::{BalanceRepositoryBase, BalanceRepositoryUtill}}}, infrastructure::database::mysql::impl_repository::{asset_repo::AssetRepositoryImpl, balance_repo::BalanceRepositoryImpl}, soc::soc_repository::RepositoryError};
+use crate::{domain::{dto::asset_dto::{ReqCreateAssetDto, ReqUpdateAssetDto}, entities::{asset, asset_type, current_sheet}, req_repository::{asset_repository::{AssetRepositoryBase, AssetRepositoryUtility}, balance_repository::{BalanceRepositoryBase, BalanceRepositoryUtill}}}, infrastructure::database::mysql::impl_repository::{asset_repo::AssetRepositoryImpl, balance_repo::BalanceRepositoryImpl}, soc::soc_repository::RepositoryError};
 
 
 
@@ -105,5 +105,9 @@ impl AssetRepositoryUtility for CurrentSheetRepositoryComposite{
     async fn find_all_by_user_id(&self, user_id: Uuid) -> Result<Vec<asset::Model>, RepositoryError>
     {
         self.asset_repository.find_all_by_user_id(user_id).await
+    }
+    async fn find_by_user_and_asset_type_id(&self, asset_id: Uuid, user_id: Uuid) -> Result<Option<asset_type::Model>, RepositoryError>
+    {
+        self.asset_repository.find_by_user_and_asset_type_id(asset_id, user_id).await
     }
 }

@@ -2,7 +2,7 @@ use std::{ops::Deref, sync::Arc};
 
 use uuid::Uuid;
 
-use crate::{domain::{dto::{asset_dto::{ReqCreateAssetDto, ReqUpdateAssetDto}, contact_dto::{ReqCreateContactDto, ReqUpdateContactDto}, transaction_dto::{ReqCreateIncomeDto, ReqUpdateIncomeDto}}, entities::{asset, contact, contact_type, transaction}, req_repository::{asset_repository::{AssetRepositoryBase, AssetRepositoryUtility}, contact_repository::{ContactRepositoryBase, ContactRepositoryUtility}, transaction_repository::RecordIncomeRepositoryUtility}}, infrastructure::database::mysql::impl_repository::{asset_repo::AssetRepositoryImpl, contact_repo::ContactRepositoryImpl, transaction::income_repo::IncomeRepositoryImpl}, soc::soc_repository::RepositoryError};
+use crate::{domain::{dto::{asset_dto::{ReqCreateAssetDto, ReqUpdateAssetDto}, contact_dto::{ReqCreateContactDto, ReqUpdateContactDto}, transaction_dto::{ReqCreateIncomeDto, ReqUpdateIncomeDto}}, entities::{asset, asset_type, contact, contact_type, transaction}, req_repository::{asset_repository::{AssetRepositoryBase, AssetRepositoryUtility}, contact_repository::{ContactRepositoryBase, ContactRepositoryUtility}, transaction_repository::RecordIncomeRepositoryUtility}}, infrastructure::database::mysql::impl_repository::{asset_repo::AssetRepositoryImpl, contact_repo::ContactRepositoryImpl, transaction::income_repo::IncomeRepositoryImpl}, soc::soc_repository::RepositoryError};
 
 
 
@@ -94,6 +94,10 @@ impl AssetRepositoryUtility for IncomeRepositoryComposite{
     async fn find_all_by_user_id(&self, user_id: Uuid) -> Result<Vec<asset::Model>, RepositoryError>
     {
         self.asset_repository.find_all_by_user_id(user_id).await
+    }
+    async fn find_by_user_and_asset_type_id(&self, asset_id: Uuid, user_id: Uuid) -> Result<Option<asset_type::Model>, RepositoryError>
+    {
+        self.asset_repository.find_by_user_and_asset_type_id(asset_id, user_id).await
     }
 }
 

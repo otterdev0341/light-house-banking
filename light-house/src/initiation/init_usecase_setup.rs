@@ -96,7 +96,9 @@ pub fn init_usecase_setup(db_connection: Arc<DatabaseConnection>) -> AdHoc {
         let the_contact_repository = Arc::new(ContactRepositoryImpl{
             db_pool: Arc::clone(&db_connection),
         });
-       
+        let the_expnese_repository = Arc::new(ExpenseRepositoryImpl{
+            db_pool: Arc::clone(&db_connection),
+        });
 
         // income repository && income usecase
         let the_income_repository = Arc::new(IncomeRepositoryImpl{
@@ -143,6 +145,8 @@ pub fn init_usecase_setup(db_connection: Arc<DatabaseConnection>) -> AdHoc {
             the_asset_repository.clone(),
             the_contact_repository.clone(),
             transaction_type_repository.clone(),
+            the_expnese_repository.clone(),
+            
         ));
 
         // tranfer usecase

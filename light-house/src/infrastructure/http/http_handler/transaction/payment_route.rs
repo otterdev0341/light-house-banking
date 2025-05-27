@@ -4,7 +4,7 @@ use rocket::{delete, get, http::Status, post, put, routes, serde::json::Json, Ro
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::{application::{usecase::{transaction::payment_usecase::PaymentUseCase, wrapper::payment_wrapper::PaymentRepositoryComposite}, usecase_req_impl::transaction_usecase::RecordPaymentUsecase}, domain::dto::transaction_dto::{ReqCreatePaymentDto, ReqUpdatePaymentDto, ResEntryPaymentDto, ResListPaymentDto}, infrastructure::{database::mysql::impl_repository::{asset_repo::AssetRepositoryImpl, contact_repo::ContactRepositoryImpl, transaction_type_repo::TransactionTypeRepositoryImpl}, http::{faring::authentication::AuthenticatedUser, response::otter_response::{ErrorResponse, OtterResponse, SuccessResponse}}}};
+use crate::{application::{usecase::{transaction::payment_usecase::PaymentUseCase, wrapper::payment_wrapper::PaymentRepositoryComposite}, usecase_req_impl::transaction_usecase::RecordPaymentUsecase}, domain::dto::transaction_dto::{ReqCreatePaymentDto, ReqUpdatePaymentDto, ResEntryPaymentDto, ResListPaymentDto}, infrastructure::{database::mysql::impl_repository::{asset_repo::AssetRepositoryImpl, contact_repo::ContactRepositoryImpl, expense_repo::ExpenseRepositoryImpl, transaction_type_repo::TransactionTypeRepositoryImpl}, http::{faring::authentication::AuthenticatedUser, response::otter_response::{ErrorResponse, OtterResponse, SuccessResponse}}}};
 
 
 
@@ -44,7 +44,7 @@ pub fn payment_routes() -> Vec<Route> {
 async fn create_payment(
     user: AuthenticatedUser,
     dto: Json<ReqCreatePaymentDto>,
-    payment_usecase: &State<Arc<PaymentUseCase<PaymentRepositoryComposite, AssetRepositoryImpl, ContactRepositoryImpl, TransactionTypeRepositoryImpl>>>, // Provide all generic arguments
+    payment_usecase: &State<Arc<PaymentUseCase<PaymentRepositoryComposite, AssetRepositoryImpl, ContactRepositoryImpl, TransactionTypeRepositoryImpl, ExpenseRepositoryImpl>>>, // Provide all generic arguments
 ) -> OtterResponse<ResEntryPaymentDto> {
     // field empty Bad request
     if let Err(errors) = dto.validate() {
@@ -92,7 +92,7 @@ async fn create_payment(
 async fn get_payment(
     user: AuthenticatedUser,
     payment_id: Uuid,
-    payment_usecase: &State<Arc<PaymentUseCase<PaymentRepositoryComposite, AssetRepositoryImpl, ContactRepositoryImpl, TransactionTypeRepositoryImpl>>>, // Provide all generic arguments
+    payment_usecase: &State<Arc<PaymentUseCase<PaymentRepositoryComposite, AssetRepositoryImpl, ContactRepositoryImpl, TransactionTypeRepositoryImpl, ExpenseRepositoryImpl>>>, // Provide all generic arguments
 ) -> OtterResponse<ResEntryPaymentDto> {
     
     if payment_id.is_nil() {
@@ -150,7 +150,7 @@ async fn update_payment(
     user: AuthenticatedUser,
     payment_id: Uuid,
     dto: Json<ReqUpdatePaymentDto>,
-    payment_usecase: &State<Arc<PaymentUseCase<PaymentRepositoryComposite, AssetRepositoryImpl, ContactRepositoryImpl, TransactionTypeRepositoryImpl>>>, // Provide all generic arguments
+    payment_usecase: &State<Arc<PaymentUseCase<PaymentRepositoryComposite, AssetRepositoryImpl, ContactRepositoryImpl, TransactionTypeRepositoryImpl, ExpenseRepositoryImpl>>>, // Provide all generic arguments
 ) -> OtterResponse<ResEntryPaymentDto> {
     
     if payment_id.is_nil() {
@@ -203,7 +203,7 @@ async fn update_payment(
 async fn delete_payment(
     user: AuthenticatedUser,
     payment_id: Uuid,
-    payment_usecase: &State<Arc<PaymentUseCase<PaymentRepositoryComposite, AssetRepositoryImpl, ContactRepositoryImpl, TransactionTypeRepositoryImpl>>>, // Provide all generic arguments
+    payment_usecase: &State<Arc<PaymentUseCase<PaymentRepositoryComposite, AssetRepositoryImpl, ContactRepositoryImpl, TransactionTypeRepositoryImpl, ExpenseRepositoryImpl>>>, // Provide all generic arguments
 ) -> OtterResponse<String> {
     
     if payment_id.is_nil() {
@@ -247,7 +247,7 @@ async fn delete_payment(
 #[get("/")]
 async fn get_all_payments(
     user: AuthenticatedUser,
-    payment_usecase: &State<Arc<PaymentUseCase<PaymentRepositoryComposite, AssetRepositoryImpl, ContactRepositoryImpl, TransactionTypeRepositoryImpl>>>, // Provide all generic arguments
+    payment_usecase: &State<Arc<PaymentUseCase<PaymentRepositoryComposite, AssetRepositoryImpl, ContactRepositoryImpl, TransactionTypeRepositoryImpl, ExpenseRepositoryImpl>>>, // Provide all generic arguments
 ) -> OtterResponse<ResListPaymentDto> {
     log::info!("Getting all payments for user ID: {}", user.id);
     match payment_usecase.get_all_payment(user.id).await {

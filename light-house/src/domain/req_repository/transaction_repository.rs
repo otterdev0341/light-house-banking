@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::{domain::{dto::transaction_dto::{ReqCreateIncomeDto, ReqCreatePaymentDto, ReqCreateTransferDto, ReqUpdateIncomeDto, ReqUpdatePaymentDto, ReqUpdateTransferDto}, entities::{transaction, transaction_type}}, soc::soc_repository::RepositoryError};
+use crate::{domain::{dto::transaction_dto::{ReqCreateIncomeDto, ReqCreatePaymentDto, ReqCreateTransferDto, ReqUpdateIncomeDto, ReqUpdatePaymentDto, ReqUpdateTransferDto}, entities::{expense, transaction, transaction_type}}, soc::soc_repository::RepositoryError};
 
 
 
@@ -13,6 +13,7 @@ pub trait TransferRepositoryUtility{
     async fn delete_transfer(&self, user_id: Uuid, transaction_id: Uuid) -> Result<(), RepositoryError>;
     async fn get_transfer_by_id(&self, user_id: Uuid, transaction_id: Uuid) -> Result<Option<transaction::Model>, RepositoryError>;
     async fn get_all_transfers_by_user(&self, user_id: Uuid) -> Result<Vec<transaction::Model>, RepositoryError>;
+    
 }
 
 
@@ -39,6 +40,7 @@ pub trait RecordPaymentRepositoryUtility {
     async fn delete_payment_record(&self, user_id: Uuid, transaction_id: Uuid) -> Result<(), RepositoryError>;
     async fn get_payment_record_by_id(&self, user_id: Uuid, transaction_id: Uuid) -> Result<Option<transaction::Model>, RepositoryError>;
     async fn get_all_payment_record_by_user(&self, user_id: Uuid) -> Result<Vec<transaction::Model>, RepositoryError>;
+    
 }
 
 

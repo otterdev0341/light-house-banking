@@ -2,55 +2,61 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
-use crate::{application::usecase_req_impl::transaction_usecase::RecordPaymentUsecase, domain::{dto::transaction_dto::{ReqCreatePaymentDto, ReqUpdatePaymentDto, ResEntryPaymentDto, ResListPaymentDto}, req_repository::{asset_repository::{AssetRepositoryBase, AssetRepositoryUtility}, contact_repository::{ContactRepositoryBase, ContactRepositoryUtility}, transaction_repository::{RecordPaymentRepositoryUtility, TransactionTypeRepositoryUtility}}}, soc::{soc_repository::RepositoryError, soc_usecase::UsecaseError}};
+use crate::{application::usecase_req_impl::transaction_usecase::RecordPaymentUsecase, domain::{dto::transaction_dto::{ReqCreatePaymentDto, ReqUpdatePaymentDto, ResEntryPaymentDto, ResListPaymentDto}, req_repository::{asset_repository::{AssetRepositoryBase, AssetRepositoryUtility}, contact_repository::{ContactRepositoryBase, ContactRepositoryUtility}, expense_repository::{ExpenseRepositoryBase, ExpenseRepositoryUtill}, transaction_repository::{RecordPaymentRepositoryUtility, TransactionTypeRepositoryUtility}}}, soc::{soc_repository::RepositoryError, soc_usecase::UsecaseError}};
 
 
 
 
 
-pub struct PaymentUseCase<T, A, C, TT>
+pub struct PaymentUseCase<T, A, C, TT, E>
 where
     T: RecordPaymentRepositoryUtility + Send + Sync,
     A: AssetRepositoryBase + AssetRepositoryUtility + Send + Sync,
     C: ContactRepositoryBase + ContactRepositoryUtility + Send + Sync,
     TT: TransactionTypeRepositoryUtility + Send + Sync,
+    E: ExpenseRepositoryBase + ExpenseRepositoryUtill + Send + Sync,
 {
     payment_repo: Arc<T>,
     asset_repo: Arc<A>,
     contact_repo: Arc<C>,
     transaction_type_repo: Arc<TT>,
+    expense_repo: Arc<E>,
 }
 
-impl<T, A, C, TT> PaymentUseCase<T, A, C, TT>
+impl<T, A, C, TT, E> PaymentUseCase<T, A, C, TT, E>
 where
     T: RecordPaymentRepositoryUtility + Send + Sync,
     A: AssetRepositoryBase + AssetRepositoryUtility + Send + Sync,
     C: ContactRepositoryBase + ContactRepositoryUtility + Send + Sync,
     TT: TransactionTypeRepositoryUtility + Send + Sync,
+    E: ExpenseRepositoryBase + ExpenseRepositoryUtill + Send + Sync,
 {
     pub fn new(
         payment_repo: Arc<T>,
         asset_repo: Arc<A>,
         contact_repo: Arc<C>,
         transaction_type_repo: Arc<TT>,
+        expense_repo: Arc<E>,
     ) -> Self {
         Self {
             payment_repo,
             asset_repo,
             contact_repo,
             transaction_type_repo,
+            expense_repo
         }
     }
 }
 
 
 #[async_trait::async_trait]
-impl<T, A, C, TT> RecordPaymentUsecase for PaymentUseCase<T, A, C, TT>
+impl<T, A, C, TT, E> RecordPaymentUsecase for PaymentUseCase<T, A, C, TT, E>
 where
     T: RecordPaymentRepositoryUtility + Send + Sync,
     A: AssetRepositoryBase + AssetRepositoryUtility + Send + Sync,
     C: ContactRepositoryBase + ContactRepositoryUtility + Send + Sync,
     TT: TransactionTypeRepositoryUtility + Send + Sync,
+    E: ExpenseRepositoryBase + ExpenseRepositoryUtill + Send + Sync,
 {
 
     async fn create_payment(&self, user_id: Uuid, payment_dto: ReqCreatePaymentDto) -> Result<ResEntryPaymentDto, UsecaseError>
@@ -79,8 +85,8 @@ where
 
     // Step 3: Fetch the expense name using the expense_id
     let expense_name = match self
-        .asset_repo
-        .find_by_id(
+        .expense_repo
+        .find_by_user_id_and_expense_id(
             user_id,
             Uuid::from_slice(
                 payment_created
@@ -97,7 +103,7 @@ where
         )
         .await
     {
-        Ok(Some(expense)) => expense.name,
+        Ok(Some(expense)) => expense.description,
         Ok(None) => String::from("Unknown"),
         Err(err) => return Err(UsecaseError::from(err)),
     };
@@ -462,8 +468,8 @@ where
                         log::error!("Invalid expense_id: {}", e);
                         UsecaseError::from(RepositoryError::InvalidInput("Invalid expense_id".to_string()))
                     })?;
-                    match self.asset_repo.find_by_id(user_id, expense_uuid).await {
-                        Ok(Some(expense)) => expense.name,
+                    match self.expense_repo.find_by_user_id_and_expense_id(user_id, expense_uuid).await {
+                        Ok(Some(expense)) => expense.description,
                         Ok(None) => String::from("Unknown"),
                         Err(err) => {
                             log::error!("Failed to fetch expense: {}", err);

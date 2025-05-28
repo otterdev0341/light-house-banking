@@ -28,7 +28,7 @@ pub trait UserRepositoryBase: Send + Sync {
 
 #[async_trait::async_trait]
 #[mockall::automock]
-pub trait UserRepositoryMcp: Send + Sync{
-    async fn get_mcp_by_user_id(&self, user_id: Uuid) -> Result<Option<String>, RepositoryError>;
+pub trait McpRepositoryBase: Send + Sync {
+    async fn get_user_id_from_mcp_token(&self, mcp_token: &str) -> Result<user::Model, RepositoryError>;
     async fn regenerate_mcp_token(&self, user_id: Uuid) -> Result<(), RepositoryError>;
 }

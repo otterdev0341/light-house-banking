@@ -25,7 +25,7 @@ impl<'r> FromRequest<'r> for McpAuthenticateUser {
 
         // Step 2: Extract the MCP token from the header
         if let Some(auth_header) = req.headers().get_one("Mcp Authorization") {
-            if let Some(token) = auth_header.strip_prefix("Mcp Token ") {
+            if let Some(token) = auth_header.strip_prefix("MCP ") {
                 // Step 3: Query the user table to find the user with the given MCP token
                 match user::Entity::find()
                     .filter(user::Column::McpToken.eq(token.to_string()))

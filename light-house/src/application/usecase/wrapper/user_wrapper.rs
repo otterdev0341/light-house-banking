@@ -1,7 +1,7 @@
 use std::{ops::Deref, sync::Arc};
 use uuid::Uuid;
 
-use crate::{domain::{dto::auth_dto::{ReqSignInDto, ReqSignUpDto, ReqUpdateUserDto, ResSignInDto}, entities::{gender, user, user_role}, req_repository::{auth_repository::AuthRepository, gender_repository::GenderRepository, user_repository::{UserRepositoryBase, UserRepositoryUtility}, user_role_repository::RoleManagementRepository}}, infrastructure::database::mysql::impl_repository::{
+use crate::{domain::{dto::auth_dto::{ReqSignInDto, ReqSignUpDto, ReqUpdateUserDto, ResSignInDto}, entities::{gender, user, user_role}, req_repository::{auth_repository::AuthRepository, gender_repository::GenderRepository, user_repository::{McpRepositoryBase, UserRepositoryBase, UserRepositoryUtility}, user_role_repository::RoleManagementRepository}}, infrastructure::database::mysql::impl_repository::{
     auth_repo::AuthRepositoryImpl, gender_repo::GenderRepositoryImpl,
     role_repo::RoleManagementRepositoryImpl, user_repo::UserRepositoryImpl,
 }, soc::soc_repository::RepositoryError};
@@ -11,6 +11,7 @@ pub struct UserRepositoryComposite {
     pub auth_repository: Arc<AuthRepositoryImpl>,
     pub role_repository: Arc<RoleManagementRepositoryImpl>,
     pub gender_repository: Arc<GenderRepositoryImpl>,
+    
 }
 
 impl UserRepositoryComposite {

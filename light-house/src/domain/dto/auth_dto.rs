@@ -79,3 +79,10 @@ pub struct ResMeDto {
     pub first_name: String,
     pub last_name: String
 }
+
+
+#[derive(Deserialize, Serialize, ToSchema)]
+#[serde(crate = "rocket::serde")]
+pub struct ResMcpDto {
+    pub mcp_token: String
+}

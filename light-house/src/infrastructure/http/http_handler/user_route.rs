@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use rocket::{http::Status, post, put, routes, serde::json::Json, Route, State};
+use rocket::{get, http::Status, post, put, routes, serde::json::Json, Route, State};
 use validator::Validate;
 
-use crate::{application::{usecase::{user_usecase::UserUseCase, wrapper::user_wrapper::UserRepositoryComposite}, usecase_req_impl::user_usecase::UserUsecase}, domain::dto::auth_dto::{ReqSignInDto, ReqSignUpDto, ReqUpdateUserDto, ResMeDto, ResSignInDto}, infrastructure::http::{faring::{authentication::AuthenticatedUser, cors::options}, response::otter_response::{ErrorResponse, OtterResponse, SuccessResponse}}};
+use crate::{application::{usecase::{user_usecase::UserUseCase, wrapper::user_wrapper::UserRepositoryComposite}, usecase_req_impl::user_usecase::UserUsecase}, domain::dto::auth_dto::{ReqSignInDto, ReqSignUpDto, ReqUpdateUserDto, ResMcpDto, ResMeDto, ResSignInDto}, infrastructure::http::{faring::{authentication::AuthenticatedUser, cors::options}, response::otter_response::{ErrorResponse, OtterResponse, SuccessResponse}}};
 
 
 
@@ -14,6 +14,7 @@ pub fn user_routes() -> Vec<Route> {
         sign_up,
         update_user,
         me,
+        get_mcp,
         options
         // get_users,
         // create_user,
@@ -151,6 +152,35 @@ pub async fn update_user(
 pub async fn me(user: AuthenticatedUser, user_usecase: &State<Arc<UserUseCase<UserRepositoryComposite>>>) -> OtterResponse<ResMeDto> {
     // This function is not implemented yet
     match user_usecase.me(user.id).await {
+        Ok(res) => Ok(SuccessResponse(Status::Ok, res)),
+        Err(err) => {
+            let error_response = ErrorResponse(Status::InternalServerError, err.to_string());
+            Err(error_response)
+        }
+    }
+}
+
+
+
+#[get("/mcp")]
+#[utoipa::path(
+    get,
+    path = "/mcp",
+    summary = "Get MCP token",
+    description = "Get MCP token for the authenticated user",
+    security(
+        ("bearer_auth" = [])
+    ),
+    responses(
+        (status = 200, description = "MCP token retrieved successfully", body = ResMcpDto),
+        (status = 401, description = "Unauthorized", body = ErrorResponse),
+        (status = 500, description = "Error retrieving MCP token", body = ErrorResponse)
+    ),
+    tags = ["MCP"]
+)]
+pub async fn get_mcp(user: AuthenticatedUser, user_usecase: &State<Arc<UserUseCase<UserRepositoryComposite>>>) -> OtterResponse<ResMcpDto> {
+    // This function is not implemented yet
+    match user_usecase.get_mcp_token(user.id).await {
         Ok(res) => Ok(SuccessResponse(Status::Ok, res)),
         Err(err) => {
             let error_response = ErrorResponse(Status::InternalServerError, err.to_string());

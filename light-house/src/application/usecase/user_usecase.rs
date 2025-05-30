@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
-use crate::{application::usecase_req_impl::user_usecase::UserUsecase, domain::{dto::auth_dto::{ReqSignInDto, ReqSignUpDto, ReqUpdateUserDto, ResMeDto, ResSignInDto}, req_repository::{auth_repository::AuthRepository, gender_repository::GenderRepository, user_repository::{UserRepositoryBase, UserRepositoryUtility}, user_role_repository::RoleManagementRepository}}, soc::soc_usecase::UsecaseError};
+use crate::{application::usecase_req_impl::user_usecase::UserUsecase, domain::{dto::auth_dto::{ReqSignInDto, ReqSignUpDto, ReqUpdateUserDto, ResMcpDto, ResMeDto, ResSignInDto}, req_repository::{auth_repository::AuthRepository, gender_repository::GenderRepository, user_repository::{McpRepositoryBase, UserRepositoryBase, UserRepositoryUtility}, user_role_repository::RoleManagementRepository}}, soc::soc_usecase::UsecaseError};
 
 
 
@@ -218,4 +218,23 @@ where
         // Step 5: Return the response object
         Ok(res_me)
     }
-}
+
+    async fn get_mcp_token(&self, user_id: Uuid) -> Result<ResMcpDto, UsecaseError>
+    {
+        // Step 1: Fetch the user by ID
+        let user = match self.user_repository.find_by_id(user_id).await {
+            Ok(Some(user)) => user,
+            Ok(None) => return Err(UsecaseError::ResourceNotFound(format!("User with ID '{}' not found", user_id))),
+            Err(err) => return Err(UsecaseError::from(err)),
+        };
+        let result = ResMcpDto {
+            mcp_token: user.mcp_token,
+        };
+        // Step 2: Return the MCP token
+        Ok(result)
+
+    }
+
+    
+
+}//

@@ -37,6 +37,7 @@ async fn main() -> Result<(), rocket::Error>  {
     match rocket::build()
         .attach(CORS)
         .attach(init_usecase_setup(Arc::clone(&db_arc)))
+        .manage(db_arc.as_ref().clone())
         .manage(jwt_config::JwtSecret::default())
         .mount("/", routes![index])
         .attach(init_handler_setup())

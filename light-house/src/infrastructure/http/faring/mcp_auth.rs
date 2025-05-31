@@ -13,8 +13,8 @@ impl<'r> FromRequest<'r> for McpAuthenticateUser {
 
     async fn from_request(req: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
         // Step 1: Extract the database connection from Rocket's State
-        let db_pool = match req.rocket().state::<State<DatabaseConnection>>() {
-            Some(state) => state.inner(),
+        let db_pool = match req.rocket().state::<DatabaseConnection>() {
+            Some(db) => db,
             None => {
                 return Outcome::Error((
                     Status::InternalServerError,
@@ -24,7 +24,7 @@ impl<'r> FromRequest<'r> for McpAuthenticateUser {
         };
 
         // Step 2: Extract the MCP token from the header
-        if let Some(auth_header) = req.headers().get_one("Mcp Authorization") {
+        if let Some(auth_header) = req.headers().get_one("Mcp-Authorization") {
             if let Some(token) = auth_header.strip_prefix("MCP ") {
                 // Step 3: Query the user table to find the user with the given MCP token
                 match user::Entity::find()
